@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Habit Tracker — Gizlilik Politikası</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: #0B0910; color: #ECEAF3;
+    font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.6;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 40px 22px 80px; }
+  .badge {
+    width: 60px; height: 60px; border-radius: 18px;
+    background: linear-gradient(145deg,#A855F7,#6366F1);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 30px; margin-bottom: 18px;
+  }
+  h1 { font-size: 28px; letter-spacing: -0.5px; margin: 0 0 4px; }
+  .sub { color: #9A93AE; margin: 0 0 28px; font-size: 14px; }
+  h2 { font-size: 19px; margin: 32px 0 8px; color: #C4B5FD; }
+  p, li { color: #D8D4E4; font-size: 15px; }
+  a { color: #B39DFF; }
+  ul { padding-left: 20px; }
+  .card {
+    background: #15121E; border: 1px solid #272231; border-radius: 16px;
+    padding: 16px 18px; margin-top: 12px;
+  }
+  code { background: #1F1B2B; padding: 1px 6px; border-radius: 6px; font-size: 13px; }
+  hr { border: none; border-top: 1px solid #272231; margin: 36px 0; }
+  .muted { color: #9A93AE; font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="badge">✓</div>
+  <h1>Habit Tracker — Gizlilik Politikası</h1>
+  <p class="sub">Son güncelleme: 22 Haziran 2026</p>
+
+  <p>Habit Tracker (“uygulama”), kişisel alışkanlık ve verimlilik takibi için
+  geliştirilmiş bir mobil uygulamadır. Gizliliğine önem veriyoruz. Bu politika,
+  hangi verileri topladığımızı, nasıl kullandığımızı ve haklarını açıklar.</p>
+
+  <h2>Toplanan veriler</h2>
+  <div class="card">
+    <ul>
+      <li><b>Hesap bilgisi:</b> e-posta adresin ve (belirlersen) görünen adın.</li>
+      <li><b>Takip verilerin:</b> oluşturduğun metrikler ve girdiğin günlük
+      kayıtlar (sayılar, evet/hayır işaretleri, etiketler, serbest notlar) ile
+      hesaplanan günlük verim puanların.</li>
+      <li><b>Hatırlatma tercihi:</b> yalnızca cihazında saklanan bildirim saati.</li>
+    </ul>
+    <p class="muted">Konum, rehber, reklam kimliği gibi veriler toplanmaz.
+    Reklam gösterilmez, veri satışı yapılmaz.</p>
+  </div>
+
+  <h2>Verilerin nasıl kullanılır</h2>
+  <p>Verilerin yalnızca uygulamanın çalışması için kullanılır: kayıtlarını
+  saklamak, sana geri göstermek, ilerleme/grafik/seri hesaplamak ve
+  (açtıysan) günlük hatırlatma göndermek.</p>
+
+  <h2>Üçüncü taraf hizmetler</h2>
+  <div class="card">
+    <ul>
+      <li><b>Supabase</b> (kimlik doğrulama ve veritabanı barındırma): hesabın
+      ve takip verilerin güvenli sunucularda saklanır. Her kullanıcı yalnızca
+      kendi verisine erişebilir (satır düzeyi güvenlik).</li>
+      <li><b>Google Gemini API</b> (isteğe bağlı AI özelliği): yalnızca “AI”
+      sekmesinde gününü yazıp gönderdiğinde, o metin metriklere dönüştürülmek
+      üzere Google’a iletilir. Bu özelliği kullanmazsan hiçbir veri Google’a
+      gönderilmez.</li>
+    </ul>
+  </div>
+
+  <h2>Veri güvenliği</h2>
+  <p>Tüm iletişim şifreli bağlantı (HTTPS) üzerinden yapılır. Veritabanında
+  satır düzeyi güvenlik (RLS) ile her hesap yalnızca kendi verisini görür.
+  AI servisinin anahtarı yalnızca sunucu tarafında tutulur, uygulamaya
+  gömülmez.</p>
+
+  <h2>Verilerini silme</h2>
+  <p>Uygulama içinden bir metriği sildiğinde, o metriğe ait tüm geçmiş kayıtlar
+  da kalıcı olarak silinir. Hesabının tamamen silinmesini istersen aşağıdaki
+  e-postadan bize ulaş; hesabın ve ona bağlı tüm verilerin silinir.</p>
+
+  <h2>Çocukların gizliliği</h2>
+  <p>Uygulama 13 yaş altındaki çocuklara yönelik değildir ve bilerek bu yaş
+  grubundan veri toplamaz.</p>
+
+  <h2>Değişiklikler</h2>
+  <p>Bu politika zaman zaman güncellenebilir. Önemli değişikliklerde bu sayfadaki
+  tarih güncellenir.</p>
+
+  <h2>İletişim</h2>
+  <p>Sorular ve veri silme talepleri için:
+  <a href="mailto:erenn.suner@gmail.com">erenn.suner@gmail.com</a></p>
+
+  <hr>
+  <p class="muted">Bu sayfa Habit Tracker uygulamasının gizlilik politikasıdır.</p>
+</div>
+</body>
+</html>
