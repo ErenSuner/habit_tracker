@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../config/category_colors.dart';
 import '../models/metric.dart';
 import '../services/data_service.dart';
 
@@ -23,7 +24,10 @@ class _MetricEditScreenState extends State<MetricEditScreen> {
   late final TextEditingController _nameCtrl;
   late final TextEditingController _unitCtrl;
   late final TextEditingController _targetCtrl;
-  late final TextEditingController _categoryCtrl;
+
+  // Kategori artik etiket secimi: havuzdan sec ya da yeni olustur.
+  String? _selectedCategory;
+  List<String> _categories = [];
 
   late MetricType _type;
   late TargetDirection _direction;
@@ -43,12 +47,105 @@ class _MetricEditScreenState extends State<MetricEditScreen> {
     _targetCtrl = TextEditingController(
       text: m?.target != null ? _trimNum(m!.target!) : '',
     );
-    _categoryCtrl = TextEditingController(text: m?.category ?? '');
+    _selectedCategory = m?.category?.trim().isEmpty ?? true ? null : m!.category;
     _type = m?.type ?? MetricType.numeric;
     _direction = m?.targetDirection ?? TargetDirection.up;
     _goodValue = m?.goodValue ?? true;
     _boolHasValue = m?.boolHasValue ?? false;
     _weight = m?.weight ?? 1;
+    _loadCategories();
+  }
+
+  // Var olan kategori havuzunu cek; secili kategori havuzda yoksa ekle.
+  Future<void> _loadCategories() async {
+    try {
+      final list = await _data.fetchCategories();
+      if (_selectedCategory != null && !list.contains(_selectedCategory)) {
+        list.add(_selectedCategory!);
+      }
+      list.sort();
+      if (mounted) setState(() => _categories = list);
+    } catch (_) {
+      // Havuz kritik degil; en azindan secili kategoriyi goster.
+      if (mounted && _selectedCategory != null) {
+        setState(() => _categories = [_selectedCategory!]);
+      }
+    }
+  }
+
+  // Yeni kategori olusturma penceresi.
+  Future<void> _newCategory() async {
+    final ctrl = TextEditingController();
+    final name = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Yeni kategori'),
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          textCapitalization: TextCapitalization.words,
+          decoration: const InputDecoration(hintText: 'örn. Sağlık, Zihin'),
+          onSubmitted: (v) => Navigator.pop(ctx, v),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('İptal'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, ctrl.text),
+            child: const Text('Ekle'),
+          ),
+        ],
+      ),
+    );
+    final cap = _capitalize(name ?? '');
+    if (cap.isEmpty) return;
+    setState(() {
+      if (!_categories.contains(cap)) _categories.add(cap);
+      _categories.sort();
+      _selectedCategory = cap;
+    });
+  }
+
+  // Kategoriyi havuzdan siler (tum metriklerden kaldirir; metrikler kalir).
+  Future<void> _deleteCategory(String cat) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Kategoriyi sil'),
+        content: Text(
+          '"$cat" kategorisi tüm metriklerden kaldırılsın mı? '
+          'Metrikler silinmez, yalnızca kategorisiz kalır.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Vazgeç'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Sil'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await _data.deleteCategory(cat);
+      if (mounted) {
+        setState(() {
+          _categories.remove(cat);
+          if (_selectedCategory == cat) _selectedCategory = null;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Silinemedi: $e')),
+        );
+      }
+    }
   }
 
   // "uyku" -> "Uyku" : ilk harfi buyut.
@@ -69,7 +166,6 @@ class _MetricEditScreenState extends State<MetricEditScreen> {
     _nameCtrl.dispose();
     _unitCtrl.dispose();
     _targetCtrl.dispose();
-    _categoryCtrl.dispose();
     super.dispose();
   }
 
@@ -97,9 +193,7 @@ class _MetricEditScreenState extends State<MetricEditScreen> {
       goodValue: _goodValue,
       boolHasValue: _type == MetricType.boolean && _boolHasValue,
       sortOrder: widget.metric?.sortOrder ?? widget.nextSortOrder,
-      category: _categoryCtrl.text.trim().isEmpty
-          ? null
-          : _capitalize(_categoryCtrl.text),
+      category: _selectedCategory,
     );
 
     try {
@@ -197,17 +291,31 @@ class _MetricEditScreenState extends State<MetricEditScreen> {
               validator: (v) =>
                   (v == null || v.trim().isEmpty) ? 'Ad boş olamaz' : null,
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
 
-            // Kategori (gruplama icin, istege bagli)
-            TextFormField(
-              controller: _categoryCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Kategori (isteğe bağlı)',
-                hintText: 'örn. Sağlık, Zihin, Alışkanlık',
-              ),
+            // Kategori — etiket secimi (havuzdan sec ya da yeni olustur).
+            Text('Kategori (isteğe bağlı)',
+                style: Theme.of(context).textTheme.titleSmall),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final cat in _categories) _categoryChip(cat),
+                _newCategoryChip(),
+              ],
             ),
-            const SizedBox(height: 16),
+            if (_categories.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Seçmek için dokun · silmek için basılı tut',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+            const SizedBox(height: 20),
 
             // Tip secimi
             DropdownButtonFormField<MetricType>(
@@ -290,6 +398,77 @@ class _MetricEditScreenState extends State<MetricEditScreen> {
                     )
                   : const Icon(Icons.check),
               label: Text(_isEditing ? 'Kaydet' : 'Ekle'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Secilebilir kategori etiketi (kendi rengiyle).
+  Widget _categoryChip(String cat) {
+    final color = categoryColor(cat);
+    final selected = _selectedCategory == cat;
+    return GestureDetector(
+      onTap: () => setState(
+          () => _selectedCategory = selected ? null : cat),
+      onLongPress: () => _deleteCategory(cat),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected ? color : color.withValues(alpha: 0.14),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: selected ? color : color.withValues(alpha: 0.45),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (selected) ...[
+              Icon(Icons.check, size: 15, color: onCategoryColor(color)),
+              const SizedBox(width: 5),
+            ],
+            Text(
+              cat,
+              style: TextStyle(
+                fontSize: 13.5,
+                fontWeight: FontWeight.w600,
+                color: selected ? onCategoryColor(color) : color,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // "+ Yeni kategori" etiketi.
+  Widget _newCategoryChip() {
+    return GestureDetector(
+      onTap: _newCategory,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: Theme.of(context).colorScheme.outline,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.add,
+                size: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
+            const SizedBox(width: 5),
+            Text(
+              'Yeni',
+              style: TextStyle(
+                fontSize: 13.5,
+                fontWeight: FontWeight.w600,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
           ],
         ),

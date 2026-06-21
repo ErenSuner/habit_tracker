@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../config/app_colors.dart';
+import '../config/category_colors.dart';
 import '../models/entry.dart';
 import '../models/metric.dart';
 import '../services/data_service.dart';
@@ -257,14 +258,25 @@ class DayEntryFormState extends State<DayEntryForm> {
 
     final widgets = <Widget>[];
     for (final key in order) {
+      final color = key == 'Diğer' ? kNoCategoryColor : categoryColor(key);
       widgets.add(Padding(
-        padding: const EdgeInsets.fromLTRB(6, 8, 6, 8),
-        child: Text(
-          key,
-          style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w700,
-                color: Theme.of(context).colorScheme.primary,
-              ),
+        padding: const EdgeInsets.fromLTRB(6, 10, 6, 8),
+        child: Row(
+          children: [
+            Container(
+              width: 9,
+              height: 9,
+              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              key,
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: color,
+                  ),
+            ),
+          ],
         ),
       ));
       widgets.addAll(groups[key]!.map(_metricCard));

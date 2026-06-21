@@ -68,6 +68,24 @@ class DataService {
     await _client.from('metrics').insert(data);
   }
 
+  // Bir kategoriyi havuzdan siler: o kategoriye sahip tum metriklerin
+  // kategorisini bosaltir (metrikler silinmez, kategorisiz kalir).
+  Future<void> deleteCategory(String name) async {
+    await _client.from('metrics').update({'category': null}).eq('category', name);
+  }
+
+  // Var olan metriklerden kullanilan kategorilerin (bos olmayan) havuzu.
+  Future<List<String>> fetchCategories() async {
+    final metrics = await fetchMetrics(onlyActive: false);
+    final set = <String>{};
+    for (final m in metrics) {
+      final c = m.category?.trim();
+      if (c != null && c.isNotEmpty) set.add(c);
+    }
+    final list = set.toList()..sort();
+    return list;
+  }
+
   // Yeni kullanici (hic metrigi yok) ise notr baslangic setini bir kerede ekler.
   // Zaten metrik varsa hicbir sey yapmaz. Eklediyse true doner.
   Future<bool> seedDefaultMetricsIfEmpty() async {

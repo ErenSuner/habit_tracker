@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:speech_to_text/speech_recognition_result.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 
+import '../config/app_colors.dart';
 import '../models/ai_proposal.dart';
 import '../models/metric.dart';
 import '../services/ai_service.dart';
@@ -352,24 +353,82 @@ class AiScreenState extends State<AiScreen> {
   }
 
   Widget _emptyHint() {
-    final c = Theme.of(context).colorScheme;
+    const examples = [
+      'Bugün 30 dakika koştum ve 2 litre su içtim',
+      '8 saat uyudum, 20 sayfa kitap okudum',
+      'Meditasyon yaptım, günlüğüme not aldım',
+    ];
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(28),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.auto_awesome, size: 56, color: c.primary),
-            const SizedBox(height: 16),
-            Text('Gününü anlat', style: Theme.of(context).textTheme.titleLarge),
+            Container(
+              width: 76,
+              height: 76,
+              alignment: Alignment.center,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: AppColors.gradient,
+              ),
+              child: const Icon(Icons.auto_awesome, size: 36, color: Colors.white),
+            ),
+            const SizedBox(height: 18),
+            Text('Gününü anlat',
+                style: Theme.of(context)
+                    .textTheme
+                    .titleLarge
+                    ?.copyWith(fontWeight: FontWeight.w700)),
             const SizedBox(height: 8),
-            Text(
-              'Örnek: "Bugün 1 saat koştum, Sefiller\'den 30 sayfa okudum, '
-              'anarşizm araştırdım ve 1850 kalori aldım."',
+            const Text(
+              'Ne yaptığını yaz ya da mikrofonla söyle; asistan metriklerini '
+              'senin için doldursun.',
               textAlign: TextAlign.center,
-              style: TextStyle(color: c.onSurfaceVariant),
+              style: TextStyle(color: AppColors.textSecondary, height: 1.35),
+            ),
+            const SizedBox(height: 22),
+            ...examples.map(
+              (e) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: _exampleChip(e),
+              ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  // Bos ekrandaki hizli baslangic ornegi: dokununca yazip gonderir.
+  Widget _exampleChip(String text) {
+    return Material(
+      color: AppColors.surface,
+      shape: RoundedRectangleBorder(
+        side: const BorderSide(color: AppColors.border),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: _sending
+            ? null
+            : () {
+                _inputCtrl.text = text;
+                _send();
+              },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.bolt, size: 16, color: AppColors.purpleBright),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text('"$text"',
+                    style: const TextStyle(fontSize: 13, height: 1.3)),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -381,66 +440,101 @@ class AiScreenState extends State<AiScreen> {
       return Align(
         alignment: Alignment.centerRight,
         child: Container(
-          margin: const EdgeInsets.only(bottom: 10, left: 40),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: BoxDecoration(
-            color: c.primaryContainer,
-            borderRadius: BorderRadius.circular(16),
+          margin: const EdgeInsets.only(bottom: 10, left: 48),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+          decoration: const BoxDecoration(
+            gradient: AppColors.gradient,
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(18),
+              topRight: Radius.circular(18),
+              bottomLeft: Radius.circular(18),
+              bottomRight: Radius.circular(4),
+            ),
           ),
-          child: Text(msg.text ?? ''),
+          child: Text(msg.text ?? '',
+              style: const TextStyle(color: Colors.white, height: 1.3)),
         ),
       );
     }
 
     // Asistan balonu
+    final hasEntries = msg.proposal != null && msg.proposal!.entries.isNotEmpty;
     return Align(
       alignment: Alignment.centerLeft,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 10, right: 40),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        margin: const EdgeInsets.only(bottom: 10, right: 48),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: msg.isError ? c.errorContainer : c.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(16),
+          color: msg.isError ? c.errorContainer : AppColors.surface,
+          border: Border.all(
+              color: msg.isError ? Colors.transparent : AppColors.border),
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(18),
+            topRight: Radius.circular(18),
+            bottomLeft: Radius.circular(4),
+            bottomRight: Radius.circular(18),
+          ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(msg.proposal?.reply ?? msg.text ?? ''),
-            if (msg.proposal != null && msg.proposal!.entries.isNotEmpty) ...[
-              const SizedBox(height: 10),
-              ...msg.proposal!.entries.map(
-                (e) => Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 2),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(Icons.check, size: 16, color: c.primary),
-                      const SizedBox(width: 6),
-                      Expanded(child: Text(_entrySummary(e))),
-                    ],
-                  ),
+            Text(msg.proposal?.reply ?? msg.text ?? '',
+                style: const TextStyle(height: 1.3)),
+            if (hasEntries) ...[
+              const SizedBox(height: 12),
+              // Onerilen girisler ozet kutusu.
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceHigh,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    for (final e in msg.proposal!.entries)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(Icons.check_circle,
+                                size: 16, color: AppColors.purpleBright),
+                            const SizedBox(width: 8),
+                            Expanded(
+                                child: Text(_entrySummary(e),
+                                    style: const TextStyle(fontSize: 13.5))),
+                          ],
+                        ),
+                      ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
               if (msg.applied)
                 Row(
                   children: [
                     Icon(Icons.check_circle, size: 18, color: c.primary),
                     const SizedBox(width: 6),
-                    const Text('Kaydedildi'),
+                    Text('Kaydedildi',
+                        style: TextStyle(
+                            color: c.primary, fontWeight: FontWeight.w600)),
                   ],
                 )
               else
-                FilledButton.icon(
-                  onPressed: msg.applying ? null : () => _confirm(msg),
-                  icon: msg.applying
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.save),
-                  label: const Text('Onayla ve kaydet'),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: msg.applying ? null : () => _confirm(msg),
+                    icon: msg.applying
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.save, size: 18),
+                    label: const Text('Onayla ve kaydet'),
+                  ),
                 ),
             ],
           ],

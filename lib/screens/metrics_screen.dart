@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 
+import '../config/app_colors.dart';
+import '../config/category_colors.dart';
 import '../config/default_metrics.dart';
 import '../models/metric.dart';
 import '../services/data_service.dart';
 import 'metric_edit_screen.dart';
 
-// Takip kalemlerinin (metrik) listesi. Ekle / duzenle / sil yapilir.
+// Takip kalemlerinin (metrik) listesi. Ekle / duzenle / sil / sirala.
 class MetricsScreen extends StatefulWidget {
   const MetricsScreen({super.key});
 
@@ -87,7 +89,7 @@ class _MetricsScreenState extends State<MetricsScreen> {
     }
   }
 
-  // Ilk kullanim icin birkac ornek metrik ekler.
+  // Ilk kullanim icin notr ornek metrikleri ekler.
   Future<void> _seedDefaults() async {
     try {
       for (final m in kDefaultMetrics) {
@@ -117,37 +119,96 @@ class _MetricsScreenState extends State<MetricsScreen> {
           : _metrics.isEmpty
               ? _EmptyState(onSeed: _seedDefaults, onAdd: () => _openEditor())
               : ReorderableListView.builder(
-                  padding: const EdgeInsets.only(top: 4, bottom: 88),
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 96),
                   itemCount: _metrics.length,
                   buildDefaultDragHandles: false,
                   onReorder: _onReorder,
-                  itemBuilder: (_, i) {
-                    final m = _metrics[i];
-                    return ListTile(
-                      key: ValueKey(m.id),
-                      leading: Icon(_iconForType(m.type)),
-                      title: Text(m.name),
-                      subtitle: Text(_subtitle(m)),
-                      onTap: () => _openEditor(metric: m),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.delete_outline),
-                            onPressed: () => _delete(m),
-                          ),
-                          ReorderableDragStartListener(
-                            index: i,
-                            child: const Padding(
-                              padding: EdgeInsets.only(left: 4, right: 4),
-                              child: Icon(Icons.drag_handle),
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
+                  proxyDecorator: (child, index, animation) => Material(
+                    color: Colors.transparent,
+                    child: child,
+                  ),
+                  itemBuilder: (_, i) => _metricCard(_metrics[i], i),
                 ),
+    );
+  }
+
+  Widget _metricCard(Metric m, int index) {
+    return Padding(
+      key: ValueKey(m.id),
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: () => _openEditor(metric: m),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(12, 12, 6, 12),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Row(
+              children: [
+                _iconBox(m),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        m.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                            fontSize: 15.5, fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        _subtitle(m),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                            fontSize: 12.5, color: AppColors.textSecondary),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete_outline,
+                      color: AppColors.textSecondary),
+                  onPressed: () => _delete(m),
+                ),
+                ReorderableDragStartListener(
+                  index: index,
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 4),
+                    child: Icon(Icons.drag_handle,
+                        color: AppColors.textSecondary),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _iconBox(Metric m) {
+    final hasCat = m.category != null && m.category!.trim().isNotEmpty;
+    final bg = hasCat ? categoryColor(m.category) : AppColors.purple;
+    final fg = hasCat ? categoryColor(m.category) : AppColors.purpleBright;
+    return Container(
+      width: 42,
+      height: 42,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(13),
+        color: bg.withValues(alpha: 0.16),
+      ),
+      child: Icon(_iconForType(m.type), size: 21, color: fg),
     );
   }
 
@@ -171,14 +232,15 @@ class _MetricsScreenState extends State<MetricsScreen> {
     parts.add(m.type.label);
     if (m.type == MetricType.numeric && m.target != null) {
       final dir = m.targetDirection == TargetDirection.down ? '≤' : '≥';
-      parts.add('hedef $dir ${m.target!.toInt()}${m.unit != null ? ' ${m.unit}' : ''}');
+      parts.add(
+          'hedef $dir ${m.target!.toInt()}${m.unit != null ? ' ${m.unit}' : ''}');
     }
     if (m.type != MetricType.text) parts.add('ağırlık ${m.weight}');
     return parts.join(' · ');
   }
 
   IconData _iconForType(MetricType t) => switch (t) {
-        MetricType.numeric => Icons.numbers,
+        MetricType.numeric => Icons.tag,
         MetricType.boolean => Icons.toggle_on_outlined,
         MetricType.tag => Icons.label_outline,
         MetricType.text => Icons.notes,
@@ -198,17 +260,30 @@ class _EmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.tune, size: 56),
-            const SizedBox(height: 16),
+            Container(
+              width: 76,
+              height: 76,
+              alignment: Alignment.center,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: AppColors.gradient,
+              ),
+              child: const Icon(Icons.tune, size: 34, color: Colors.white),
+            ),
+            const SizedBox(height: 18),
             Text(
               'Henüz metrik yok',
-              style: Theme.of(context).textTheme.titleLarge,
+              style: Theme.of(context)
+                  .textTheme
+                  .titleLarge
+                  ?.copyWith(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 8),
             const Text(
               'Takip etmek istediğin kalemleri ekle. Hızlı başlamak için '
               'hazır örnekleri de ekleyebilirsin.',
               textAlign: TextAlign.center,
+              style: TextStyle(color: AppColors.textSecondary, height: 1.35),
             ),
             const SizedBox(height: 24),
             FilledButton.icon(
