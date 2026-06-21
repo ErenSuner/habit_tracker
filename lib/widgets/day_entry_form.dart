@@ -456,6 +456,15 @@ class DayEntryFormState extends State<DayEntryForm> {
     }
   }
 
+  // Sayisal metrik icin hedef/sinir etiketi (yon'e gore).
+  String? _targetLabel(Metric m) {
+    if (m.target == null) return null;
+    final unit = m.unit != null ? ' ${m.unit}' : '';
+    return m.targetDirection == TargetDirection.down
+        ? 'Sınır ≤ ${_trimNum(m.target!)}$unit'
+        : 'Hedef ≥ ${_trimNum(m.target!)}$unit';
+  }
+
   // Satirin altindaki aciklama metni.
   String _metaFor(Metric m) {
     switch (m.type) {
@@ -468,10 +477,7 @@ class DayEntryFormState extends State<DayEntryForm> {
         return done ? 'Yaptım' : 'Dokunarak işaretle';
       case MetricType.numeric:
         final v = _entries[m.id]?.numValue;
-        final target = m.target != null
-            ? 'Hedef ${m.targetDirection == TargetDirection.down ? '≤' : '≥'} '
-                '${_trimNum(m.target!)}${m.unit != null ? ' ${m.unit}' : ''}'
-            : null;
+        final target = _targetLabel(m);
         if (v == null) return target ?? 'Değer girmek için dokun';
         final cur = '${_trimNum(v)}${m.unit != null ? ' ${m.unit}' : ''}';
         return target != null ? '$cur · $target' : cur;
@@ -608,10 +614,7 @@ class DayEntryFormState extends State<DayEntryForm> {
             decoration: InputDecoration(
               hintText: '0',
               suffixText: m.unit,
-              helperText: m.target != null
-                  ? 'Hedef ${m.targetDirection == TargetDirection.down ? '≤' : '≥'} '
-                      '${_trimNum(m.target!)}${m.unit != null ? ' ${m.unit}' : ''}'
-                  : null,
+              helperText: _targetLabel(m),
             ),
             onSubmitted: (_) {
               _saveNumeric(m, ctrl.text);

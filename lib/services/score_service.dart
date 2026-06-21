@@ -6,6 +6,9 @@ import '../models/metric.dart';
 // Mantik: agirligi > 0 olan her metrik icin 0..1 arasi bir "basari" degeri
 // bulunur, agirlikla carpilir, toplam agirliga bolunur ve 100 ile carpilir.
 //
+//   - numeric (artis iyi): hedefe orana gore (0..1); hedef yoksa girildiyse 1
+//   - numeric (artis kotu): 0 en iyi (+1), hedef notr (0), hedefi astikca
+//     NEGATIF (en cok -1) -> verime ceza olarak yansir
 //   - numeric: hedef varsa orana gore (yon: up/down); hedef yoksa girildiyse 1
 //   - boolean: "Evet/yaptim" (true) ise iyiyle karsilastirilir; cevapsiz =
 //              "Hayir/yapmadim" varsayilir. Yani iyi sonuc goodValue ile
@@ -29,7 +32,9 @@ class ScoreService {
     }
 
     if (totalWeight == 0) return 0;
-    return (weightedSum / totalWeight) * 100;
+    // Negatif (cezali) metrikler sonucu asagi ceker; verimi 0..100'de tutariz.
+    final pct = (weightedSum / totalWeight) * 100;
+    return pct.clamp(0, 100).toDouble();
   }
 
   // Tek bir metrigin 0..1 arasi basari degeri.
@@ -44,15 +49,16 @@ class ScoreService {
           if (t == null || t == 0) return v > 0 ? 1 : 0;
           return (v / t).clamp(0, 1).toDouble();
         } else {
-          // Sayi artinca kotulesir.
+          // Sayi artinca kotulesir: 0 en iyi (+1), arttikca duser ve NEGATIFE
+          // gecer (verime ceza). Alt sinir -1.
           if (t == null || t == 0) {
-            // Hedef yok: 0 en iyi, her artis puani yumusakca dusurur
-            // (0 -> 1.0, 1 -> 0.5, 2 -> 0.33, 3 -> 0.25 ...).
-            return v <= 0 ? 1.0 : (1 / (1 + v));
+            // Hedef yok: 0 -> +1, 1 -> 0, sonrasi negatif (-1'e yaklasir).
+            if (v <= 0) return 1.0;
+            return (1 - v) / (1 + v);
           }
-          // Hedef var: hedefin altinda/esitse tam puan, ustunde duser.
-          if (v <= t) return 1;
-          return (t / v).clamp(0, 1).toDouble();
+          // Hedef var: 0 -> +1, hedef -> 0, hedefi astikca negatif (en az -1).
+          final s = 1 - v / t;
+          return s.clamp(-1.0, 1.0).toDouble();
         }
       case MetricType.boolean:
         // Cevapsiz = "Hayir/yapmadim" (false) varsayilir.

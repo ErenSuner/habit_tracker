@@ -10,9 +10,8 @@ import '../widgets/score_badge.dart';
 // "Gecmis" sekmesi: takvimden bir gun secince o gunun girislerini
 // duzenleyebilirsin. Gelecek gunler duzenlenemez (salt-okunur).
 //
-// Takvim, uzerinde veya tarih satirinda dikey suruklenerek kuculup buyur:
-// Ay -> 2 Hafta -> Hafta. Her kademe TAM haftalar gosterir (yarim satir yok),
-// gecisler table_calendar'in kendi yumusak yukseklik animasyonuyla olur.
+// Takvim, uzerinde dikey kaydirilarak veya tarih satirindan surukleyip
+// birakilarak Ay -> 2 Hafta -> Hafta arasinda yumusakca boyutlanir.
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
 
@@ -33,9 +32,7 @@ class HistoryScreenState extends State<HistoryScreen> {
   // Formu yeniden olusturup tazelemek icin sayac (anahtarin parcasi).
   int _tick = 0;
 
-  // Takvim boyutu ve surukleme birikimi.
   CalendarFormat _calendarFormat = CalendarFormat.month;
-  double _dragAccum = 0;
 
   static DateTime _dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
 
@@ -70,33 +67,28 @@ class HistoryScreenState extends State<HistoryScreen> {
     }
   }
 
-  // ---- Takvim surukleme: esik gecilince bir kademe buyur/kuculur ----
-
-  void _onCalDragUpdate(DragUpdateDetails d) {
-    _dragAccum += d.delta.dy;
-    const threshold = 56.0;
-    if (_dragAccum >= threshold) {
-      _setFormat(grow: true);
-      _dragAccum = 0;
-    } else if (_dragAccum <= -threshold) {
-      _setFormat(grow: false);
-      _dragAccum = 0;
-    }
+  void _applyFormat(CalendarFormat f) {
+    if (f == _calendarFormat) return;
+    HapticFeedback.selectionClick();
+    setState(() {
+      _calendarFormat = f;
+      // Kuculen takvim, secili (uzerinde bulunulan) gunun haftasini gostersin.
+      _focusedDay = _selectedDay;
+    });
   }
 
-  void _onCalDragEnd(DragEndDetails d) => _dragAccum = 0;
-
-  void _setFormat({required bool grow}) {
-    final next = grow
-        ? (_calendarFormat == CalendarFormat.week
-            ? CalendarFormat.twoWeeks
-            : CalendarFormat.month)
-        : (_calendarFormat == CalendarFormat.month
-            ? CalendarFormat.twoWeeks
-            : CalendarFormat.week);
-    if (next == _calendarFormat) return;
-    HapticFeedback.selectionClick();
-    setState(() => _calendarFormat = next);
+  // Tarih satirindan dikey surukleyip birakinca yone gore bir kademe degisir.
+  void _onRowDragEnd(DragEndDetails d) {
+    final v = d.primaryVelocity ?? 0;
+    if (v > 200) {
+      _applyFormat(_calendarFormat == CalendarFormat.week
+          ? CalendarFormat.twoWeeks
+          : CalendarFormat.month);
+    } else if (v < -200) {
+      _applyFormat(_calendarFormat == CalendarFormat.month
+          ? CalendarFormat.twoWeeks
+          : CalendarFormat.week);
+    }
   }
 
   @override
@@ -106,64 +98,62 @@ class HistoryScreenState extends State<HistoryScreen> {
       appBar: AppBar(title: const Text('Geçmiş')),
       body: Column(
         children: [
-          // Takvim — dikey suruklemeyle kademeli boyutlanir.
-          GestureDetector(
-            behavior: HitTestBehavior.translucent,
-            onVerticalDragUpdate: _onCalDragUpdate,
-            onVerticalDragEnd: _onCalDragEnd,
-            child: TableCalendar(
-              locale: 'tr_TR',
-              firstDay: DateTime.utc(2020, 1, 1),
-              lastDay: DateTime.utc(2100, 12, 31),
-              focusedDay: _focusedDay,
-              startingDayOfWeek: StartingDayOfWeek.monday,
-              rowHeight: 46,
-              daysOfWeekHeight: 22,
-              calendarFormat: _calendarFormat,
-              availableCalendarFormats: const {
-                CalendarFormat.month: 'Ay',
-                CalendarFormat.twoWeeks: '2 Hafta',
-                CalendarFormat.week: 'Hafta',
-              },
-              // Dikeyi biz yonetiyoruz; yatay kaydirma ay degistirsin.
-              availableGestures: AvailableGestures.horizontalSwipe,
-              onFormatChanged: (f) => setState(() => _calendarFormat = f),
-              formatAnimationDuration: const Duration(milliseconds: 350),
-              formatAnimationCurve: Curves.easeInOutCubic,
-              headerStyle: const HeaderStyle(formatButtonVisible: false),
-              selectedDayPredicate: (d) => isSameDay(d, _selectedDay),
-              onDaySelected: (selected, focused) {
-                setState(() {
-                  _selectedDay = _dateOnly(selected);
-                  _focusedDay = focused;
-                });
-              },
-              onPageChanged: (focused) {
+          // Takvim — uzerinde dikey kaydirma format degistirir (smooth).
+          TableCalendar(
+            locale: 'tr_TR',
+            firstDay: DateTime.utc(2020, 1, 1),
+            lastDay: DateTime.utc(2100, 12, 31),
+            focusedDay: _focusedDay,
+            startingDayOfWeek: StartingDayOfWeek.monday,
+            rowHeight: 46,
+            daysOfWeekHeight: 22,
+            calendarFormat: _calendarFormat,
+            availableCalendarFormats: const {
+              CalendarFormat.month: 'Ay',
+              CalendarFormat.twoWeeks: '2 Hafta',
+              CalendarFormat.week: 'Hafta',
+            },
+            // Hem yatay (ay degistir) hem dikey (boyut) kaydirma acik.
+            availableGestures: AvailableGestures.all,
+            onFormatChanged: (f) => setState(() {
+              _calendarFormat = f;
+              _focusedDay = _selectedDay;
+            }),
+            formatAnimationDuration: const Duration(milliseconds: 450),
+            formatAnimationCurve: Curves.easeInOut,
+            headerStyle: const HeaderStyle(formatButtonVisible: false),
+            selectedDayPredicate: (d) => isSameDay(d, _selectedDay),
+            onDaySelected: (selected, focused) {
+              setState(() {
+                _selectedDay = _dateOnly(selected);
                 _focusedDay = focused;
-                _loadMonthScores(focused);
+              });
+            },
+            onPageChanged: (focused) {
+              _focusedDay = focused;
+              _loadMonthScores(focused);
+            },
+            calendarBuilders: CalendarBuilders(
+              markerBuilder: (context, day, _) {
+                final s = _scores[_dateOnly(day)];
+                if (s == null) return null;
+                return Container(
+                  width: 6,
+                  height: 6,
+                  margin: const EdgeInsets.only(top: 1),
+                  decoration: BoxDecoration(
+                    color: scoreColor(context, s),
+                    shape: BoxShape.circle,
+                  ),
+                );
               },
-              calendarBuilders: CalendarBuilders(
-                markerBuilder: (context, day, _) {
-                  final s = _scores[_dateOnly(day)];
-                  if (s == null) return null;
-                  return Container(
-                    width: 6,
-                    height: 6,
-                    margin: const EdgeInsets.only(top: 1),
-                    decoration: BoxDecoration(
-                      color: scoreColor(context, s),
-                      shape: BoxShape.circle,
-                    ),
-                  );
-                },
-              ),
             ),
           ),
-          // Tarih satiri + cekme tutamaci. Buradan da surukleyerek boyutlanir.
+          // Tarih satiri + cekme tutamaci. Buradan surukleyip birakarak da
+          // takvimi kuculup buyutebilirsin.
           GestureDetector(
             behavior: HitTestBehavior.opaque,
-            onVerticalDragUpdate: _onCalDragUpdate,
-            onVerticalDragEnd: _onCalDragEnd,
+            onVerticalDragEnd: _onRowDragEnd,
             child: Column(
               children: [
                 const Divider(height: 1),

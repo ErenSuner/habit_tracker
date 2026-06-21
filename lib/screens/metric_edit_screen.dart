@@ -25,7 +25,6 @@ class _MetricEditScreenState extends State<MetricEditScreen> {
   late final TextEditingController _unitCtrl;
   late final TextEditingController _targetCtrl;
 
-  // Kategori artik etiket secimi: havuzdan sec ya da yeni olustur.
   String? _selectedCategory;
   List<String> _categories = [];
 
@@ -38,6 +37,11 @@ class _MetricEditScreenState extends State<MetricEditScreen> {
 
   bool get _isEditing => widget.metric != null;
 
+  // Sayisal deger istiyor mu? (numeric ya da "Evet'te sayi iste" boolean)
+  bool get _wantsNumber =>
+      _type == MetricType.numeric ||
+      (_type == MetricType.boolean && _boolHasValue);
+
   @override
   void initState() {
     super.initState();
@@ -47,7 +51,7 @@ class _MetricEditScreenState extends State<MetricEditScreen> {
     _targetCtrl = TextEditingController(
       text: m?.target != null ? _trimNum(m!.target!) : '',
     );
-    _selectedCategory = m?.category?.trim().isEmpty ?? true ? null : m!.category;
+    _selectedCategory = (m?.category?.trim().isEmpty ?? true) ? null : m!.category;
     _type = m?.type ?? MetricType.numeric;
     _direction = m?.targetDirection ?? TargetDirection.up;
     _goodValue = m?.goodValue ?? true;
@@ -56,7 +60,6 @@ class _MetricEditScreenState extends State<MetricEditScreen> {
     _loadCategories();
   }
 
-  // Var olan kategori havuzunu cek; secili kategori havuzda yoksa ekle.
   Future<void> _loadCategories() async {
     try {
       final list = await _data.fetchCategories();
@@ -66,14 +69,12 @@ class _MetricEditScreenState extends State<MetricEditScreen> {
       list.sort();
       if (mounted) setState(() => _categories = list);
     } catch (_) {
-      // Havuz kritik degil; en azindan secili kategoriyi goster.
       if (mounted && _selectedCategory != null) {
         setState(() => _categories = [_selectedCategory!]);
       }
     }
   }
 
-  // Yeni kategori olusturma penceresi.
   Future<void> _newCategory() async {
     final ctrl = TextEditingController();
     final name = await showDialog<String>(
@@ -108,7 +109,6 @@ class _MetricEditScreenState extends State<MetricEditScreen> {
     });
   }
 
-  // Kategoriyi havuzdan siler (tum metriklerden kaldirir; metrikler kalir).
   Future<void> _deleteCategory(String cat) async {
     final ok = await showDialog<bool>(
       context: context,
@@ -148,18 +148,11 @@ class _MetricEditScreenState extends State<MetricEditScreen> {
     }
   }
 
-  // "uyku" -> "Uyku" : ilk harfi buyut.
   String _capitalize(String s) {
     final t = s.trim();
     if (t.isEmpty) return t;
     return t[0].toUpperCase() + t.substring(1);
   }
-
-  // Bu metrik sayisal deger istiyor mu? (numeric, ya da "Evet'te sayi iste"
-  // secili boolean)
-  bool get _wantsNumber =>
-      _type == MetricType.numeric ||
-      (_type == MetricType.boolean && _boolHasValue);
 
   @override
   void dispose() {
@@ -169,7 +162,6 @@ class _MetricEditScreenState extends State<MetricEditScreen> {
     super.dispose();
   }
 
-  // 2.0 -> "2", 2.5 -> "2.5" gibi gosterim icin.
   String _trimNum(double v) =>
       v == v.roundToDouble() ? v.toInt().toString() : v.toString();
 
@@ -178,7 +170,6 @@ class _MetricEditScreenState extends State<MetricEditScreen> {
     setState(() => _saving = true);
 
     final metric = Metric(
-      // Yeni metrikte id veritabaninda olusur; bu deger toInsert'te yok sayilir.
       id: widget.metric?.id ?? '',
       name: _capitalize(_nameCtrl.text),
       type: _type,
@@ -202,7 +193,7 @@ class _MetricEditScreenState extends State<MetricEditScreen> {
       } else {
         await _data.addMetric(metric);
       }
-      if (mounted) Navigator.pop(context, true); // true = degisiklik oldu
+      if (mounted) Navigator.pop(context, true);
     } catch (e) {
       if (mounted) {
         setState(() => _saving = false);
@@ -213,191 +204,104 @@ class _MetricEditScreenState extends State<MetricEditScreen> {
     }
   }
 
-  // Sayisal ayar alanlari (birim, hedef, yon). Hem numeric metrikte
-  // hem de "Evet'te sayi iste" secili boolean metrikte gosterilir.
-  List<Widget> _numericFields(BuildContext context) {
-    return [
-      TextFormField(
-        controller: _unitCtrl,
-        decoration: const InputDecoration(
-          labelText: 'Birim (isteğe bağlı)',
-          hintText: 'kcal, sayfa, dk, adım...',
-        ),
-      ),
-      const SizedBox(height: 16),
-      TextFormField(
-        controller: _targetCtrl,
-        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-        decoration: const InputDecoration(
-          labelText: 'Günlük hedef (isteğe bağlı)',
-          hintText: 'örn. 2200',
-        ),
-      ),
-      const SizedBox(height: 16),
-      Text('Sayı artınca:', style: Theme.of(context).textTheme.titleSmall),
-      const SizedBox(height: 8),
-      SegmentedButton<TargetDirection>(
-        segments: const [
-          ButtonSegment(
-            value: TargetDirection.up,
-            label: Text('İyileşir'),
-            icon: Icon(Icons.trending_up),
-          ),
-          ButtonSegment(
-            value: TargetDirection.down,
-            label: Text('Kötüleşir'),
-            icon: Icon(Icons.trending_down),
-          ),
-        ],
-        selected: {_direction},
-        onSelectionChanged: (s) => setState(() => _direction = s.first),
-      ),
-      const SizedBox(height: 8),
-      Text(
-        _direction == TargetDirection.up
-            ? 'Sayı yükseldikçe daha iyi (örn. adım, su, uyku, okunan sayfa).'
-            : 'Sayı yükseldikçe daha kötü (örn. mastürbasyon, sigara, '
-                'kalori, ekran süresi).',
-        style: TextStyle(
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
-          fontSize: 13,
-        ),
-      ),
-      const SizedBox(height: 16),
-    ];
-  }
-
   @override
   Widget build(BuildContext context) {
-    final isBoolean = _type == MetricType.boolean;
-    // Metin tipinin verim puanina katkisi yok; agirlik sadece digerlerinde.
-    final showWeight = _type != MetricType.text;
-
     return Scaffold(
       appBar: AppBar(
         title: Text(_isEditing ? 'Metriği düzenle' : 'Yeni metrik'),
       ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
+      body: SafeArea(
+        child: Column(
           children: [
-            TextFormField(
-              controller: _nameCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Ad',
-                hintText: 'örn. Kalori, Spor yaptım, Okunan kitap',
-              ),
-              validator: (v) =>
-                  (v == null || v.trim().isEmpty) ? 'Ad boş olamaz' : null,
-            ),
-            const SizedBox(height: 20),
+            Expanded(
+              child: Form(
+                key: _formKey,
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+                  children: [
+                    // 1) Ad
+                    TextFormField(
+                      controller: _nameCtrl,
+                      textCapitalization: TextCapitalization.sentences,
+                      decoration: const InputDecoration(
+                        labelText: 'Ad',
+                        hintText: 'örn. Su, Spor, Kitap',
+                      ),
+                      validator: (v) => (v == null || v.trim().isEmpty)
+                          ? 'Ad boş olamaz'
+                          : null,
+                    ),
+                    const SizedBox(height: 20),
 
-            // Kategori — etiket secimi (havuzdan sec ya da yeni olustur).
-            Text('Kategori (isteğe bağlı)',
-                style: Theme.of(context).textTheme.titleSmall),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (final cat in _categories) _categoryChip(cat),
-                _newCategoryChip(),
-              ],
-            ),
-            if (_categories.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Text(
-                'Seçmek için dokun · silmek için basılı tut',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    // 2) Tür
+                    _label('Nasıl takip edilsin?'),
+                    const SizedBox(height: 8),
+                    DropdownButtonFormField<MetricType>(
+                      value: _type,
+                      items: MetricType.values
+                          .map((t) => DropdownMenuItem(
+                                value: t,
+                                child: Text(_typeLabel(t)),
+                              ))
+                          .toList(),
+                      onChanged: (t) => setState(() => _type = t ?? _type),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // 3) Türe özel ayarlar
+                    ..._typeSettings(context),
+
+                    // 4) Kategori
+                    _label('Kategori (isteğe bağlı)'),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        for (final cat in _categories) _categoryChip(cat),
+                        _newCategoryChip(),
+                      ],
+                    ),
+                    if (_categories.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      _hint('Seçmek için dokun · silmek için basılı tut'),
+                    ],
+                    const SizedBox(height: 20),
+
+                    // 5) Önem (agirlik) — metin disi tiplerde
+                    if (_type != MetricType.text) ...[
+                      _label('Önem: ${_weightLabel(_weight)}'),
+                      Slider(
+                        value: _weight,
+                        min: 0,
+                        max: 5,
+                        divisions: 10,
+                        label: _trimNum(_weight),
+                        onChanged: (v) => setState(() => _weight = v),
+                      ),
+                      _hint('Verim puanına etkisi. 0 = puana katılmaz.'),
+                    ],
+                  ],
                 ),
               ),
-            ],
-            const SizedBox(height: 20),
-
-            // Tip secimi
-            DropdownButtonFormField<MetricType>(
-              value: _type,
-              decoration: const InputDecoration(labelText: 'Tip'),
-              items: MetricType.values
-                  .map((t) => DropdownMenuItem(value: t, child: Text(t.label)))
-                  .toList(),
-              onChanged: (t) => setState(() => _type = t ?? _type),
             ),
-            const SizedBox(height: 8),
-            Text(
-              _typeHelp(_type),
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-                fontSize: 13,
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Evet/Hayir tipine ozel ayarlar
-            if (isBoolean) ...[
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('"Evet" iyi mi?'),
-                subtitle: Text(
-                  _goodValue
-                      ? 'Evet demek iyi (örn. Spor yaptım).'
-                      : 'Hayır demek iyi (örn. Sigara içtim -> hayır iyi).',
-                ),
-                value: _goodValue,
-                onChanged: (v) => setState(() => _goodValue = v),
-              ),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('"Evet" seçilince sayı da iste'),
-                subtitle: const Text(
-                  'örn. "Spor yaptım" -> Evet ise kaç dakika? gibi.',
-                ),
-                value: _boolHasValue,
-                onChanged: (v) => setState(() => _boolHasValue = v),
-              ),
-              const SizedBox(height: 8),
-            ],
-
-            // Sayisal ayarlar (numeric metrik ya da degerli boolean)
-            if (_wantsNumber) ..._numericFields(context),
-
-            // Agirlik (verim puanindaki onemi)
-            if (showWeight) ...[
-              Text(
-                'Verimdeki ağırlığı: ${_trimNum(_weight)}',
-                style: Theme.of(context).textTheme.titleSmall,
-              ),
-              Slider(
-                value: _weight,
-                min: 0,
-                max: 5,
-                divisions: 10,
-                label: _trimNum(_weight),
-                onChanged: (v) => setState(() => _weight = v),
-              ),
-              Text(
-                'Yüksek ağırlık = bu metriğin günlük verim puanına etkisi büyük.',
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  fontSize: 13,
+            // Sabit alt kaydet butonu
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+              child: SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: _saving ? null : _save,
+                  icon: _saving
+                      ? const SizedBox(
+                          height: 18,
+                          width: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.check),
+                  label: Text(_isEditing ? 'Kaydet' : 'Ekle'),
                 ),
               ),
-              const SizedBox(height: 24),
-            ],
-
-            FilledButton.icon(
-              onPressed: _saving ? null : _save,
-              icon: _saving
-                  ? const SizedBox(
-                      height: 18,
-                      width: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.check),
-              label: Text(_isEditing ? 'Kaydet' : 'Ekle'),
             ),
           ],
         ),
@@ -405,13 +309,123 @@ class _MetricEditScreenState extends State<MetricEditScreen> {
     );
   }
 
-  // Secilebilir kategori etiketi (kendi rengiyle).
+  // Türe özel ayar alanlari.
+  List<Widget> _typeSettings(BuildContext context) {
+    final widgets = <Widget>[];
+
+    // Evet / Hayir ayarlari
+    if (_type == MetricType.boolean) {
+      widgets.addAll([
+        _label('Hangi cevap iyi?'),
+        const SizedBox(height: 8),
+        SegmentedButton<bool>(
+          segments: const [
+            ButtonSegment(value: true, label: Text('Evet iyi')),
+            ButtonSegment(value: false, label: Text('Hayır iyi')),
+          ],
+          selected: {_goodValue},
+          onSelectionChanged: (s) => setState(() => _goodValue = s.first),
+        ),
+        const SizedBox(height: 16),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: const Text('"Evet" seçilince sayı da sor'),
+          subtitle: const Text('örn. kaç dakika, kaç sayfa'),
+          value: _boolHasValue,
+          onChanged: (v) => setState(() => _boolHasValue = v),
+        ),
+        const SizedBox(height: 20),
+      ]);
+    }
+
+    // Sayisal ayarlar (numeric ya da degerli boolean)
+    if (_wantsNumber) {
+      final isUp = _direction == TargetDirection.up;
+      widgets.addAll([
+        _label('Sayının artması'),
+        const SizedBox(height: 8),
+        SegmentedButton<TargetDirection>(
+          segments: const [
+            ButtonSegment(
+              value: TargetDirection.up,
+              label: Text('İyi'),
+              icon: Icon(Icons.trending_up),
+            ),
+            ButtonSegment(
+              value: TargetDirection.down,
+              label: Text('Kötü'),
+              icon: Icon(Icons.trending_down),
+            ),
+          ],
+          selected: {_direction},
+          onSelectionChanged: (s) => setState(() => _direction = s.first),
+        ),
+        const SizedBox(height: 16),
+        TextFormField(
+          controller: _unitCtrl,
+          decoration: const InputDecoration(
+            labelText: 'Birim (isteğe bağlı)',
+            hintText: 'kcal, adım, dk...',
+          ),
+        ),
+        const SizedBox(height: 16),
+        TextFormField(
+          controller: _targetCtrl,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: InputDecoration(
+            labelText: isUp
+                ? 'Günlük hedef (isteğe bağlı)'
+                : 'Günlük üst sınır (isteğe bağlı)',
+            hintText: isUp ? 'ulaşmak istediğin' : 'aşmaman gereken',
+          ),
+        ),
+        const SizedBox(height: 6),
+        _hint(isUp
+            ? 'Hedefe ulaştıkça verim artar.'
+            : 'Üst sınırı aştıkça verim düşer (ceza).'),
+        const SizedBox(height: 20),
+      ]);
+    }
+
+    return widgets;
+  }
+
+  // --- Kucuk yardimci gorunumler ---
+
+  Widget _label(String text) => Text(
+        text,
+        style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600),
+      );
+
+  Widget _hint(String text) => Text(
+        text,
+        style: TextStyle(
+          fontSize: 12.5,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
+      );
+
+  String _weightLabel(double w) {
+    if (w == 0) return 'yok';
+    if (w <= 1) return 'düşük';
+    if (w <= 2) return 'normal';
+    if (w <= 3.5) return 'yüksek';
+    return 'çok yüksek';
+  }
+
+  String _typeLabel(MetricType t) => switch (t) {
+        MetricType.numeric => 'Sayı (kalori, adım, sayfa...)',
+        MetricType.boolean => 'Evet / Hayır',
+        MetricType.tag => 'Etiket listesi',
+        MetricType.text => 'Metin / Not',
+      };
+
   Widget _categoryChip(String cat) {
     final color = categoryColor(cat);
     final selected = _selectedCategory == cat;
     return GestureDetector(
-      onTap: () => setState(
-          () => _selectedCategory = selected ? null : cat),
+      onTap: () =>
+          setState(() => _selectedCategory = selected ? null : cat),
       onLongPress: () => _deleteCategory(cat),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
@@ -444,7 +458,6 @@ class _MetricEditScreenState extends State<MetricEditScreen> {
     );
   }
 
-  // "+ Yeni kategori" etiketi.
   Widget _newCategoryChip() {
     return GestureDetector(
       onTap: _newCategory,
@@ -452,15 +465,14 @@ class _MetricEditScreenState extends State<MetricEditScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: Theme.of(context).colorScheme.outline,
-          ),
+          border: Border.all(color: Theme.of(context).colorScheme.outline),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(Icons.add,
-                size: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                size: 16,
+                color: Theme.of(context).colorScheme.onSurfaceVariant),
             const SizedBox(width: 5),
             Text(
               'Yeni',
@@ -475,12 +487,4 @@ class _MetricEditScreenState extends State<MetricEditScreen> {
       ),
     );
   }
-
-  String _typeHelp(MetricType t) => switch (t) {
-        MetricType.numeric => 'Sayı girersin (kalori, adım, sayfa...).',
-        MetricType.boolean => 'Evet / Hayır seçersin (spor yaptım mı?).',
-        MetricType.tag =>
-          'O gün için birden çok etiket eklersin (araştırılan konular...).',
-        MetricType.text => 'Serbest not yazarsın (günün notu).',
-      };
 }

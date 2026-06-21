@@ -38,6 +38,7 @@ class HomeScreenState extends State<HomeScreen> {
   List<_Streak> _streaks = [];
   int _weeklyPct = 0; // son 7 gun ortalama verim
   int _bestStreak = 0; // tum zamanlarin en uzun serisi
+  String? _bestStreakName; // en uzun seriyi veren metrigin adi
   int _totalDone = 0; // toplam tamamlanan (basarili) metrik-gun sayisi
 
   static DateTime _dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
@@ -96,6 +97,7 @@ class HomeScreenState extends State<HomeScreen> {
 
       final streaks = <_Streak>[];
       var bestStreak = 0;
+      String? bestStreakName;
       var totalDone = 0;
       for (final m in metrics) {
         Set<DateTime>? success;
@@ -124,7 +126,10 @@ class HomeScreenState extends State<HomeScreen> {
         if (success == null) continue;
         totalDone += success.length;
         final longest = StatsUtil.longestStreak(success);
-        if (longest > bestStreak) bestStreak = longest;
+        if (longest > bestStreak) {
+          bestStreak = longest;
+          bestStreakName = m.name;
+        }
         final s = StatsUtil.streak(success, _today);
         if (s > 0) streaks.add(_Streak(m.name, s));
       }
@@ -144,6 +149,7 @@ class HomeScreenState extends State<HomeScreen> {
           _streaks = streaks.take(4).toList();
           _weeklyPct = weeklyPct;
           _bestStreak = bestStreak;
+          _bestStreakName = bestStreakName;
           _totalDone = totalDone;
         });
       }
@@ -368,39 +374,94 @@ class HomeScreenState extends State<HomeScreen> {
   Widget _statTiles() {
     return Row(
       children: [
-        Expanded(child: _statTile('$_weeklyPct%', 'Haftalık')),
+        Expanded(
+          child: _statTile('$_weeklyPct%', 'Haftalık', 'Haftalık ortalama',
+              'Son 7 günün ortalama verim puanı. Hiç veri girmediğin günler '
+                  '%0 sayılır, bu yüzden her gün doldurdukça yükselir.'),
+        ),
         const SizedBox(width: 12),
-        Expanded(child: _statTile('$_bestStreak', 'En iyi seri')),
+        Expanded(
+          child: _statTile(
+            '$_bestStreak',
+            (_bestStreakName != null && _bestStreak > 0)
+                ? 'En iyi · $_bestStreakName'
+                : 'En iyi seri',
+            'En iyi seri',
+            (_bestStreakName != null && _bestStreak > 0)
+                ? 'En uzun başarı serin: $_bestStreak gün — "$_bestStreakName". '
+                    'Bu, bir alışkanlığı üst üste kaç gün başardığındır.'
+                : 'Bir alışkanlığı üst üste en uzun kaç gün başardığın. '
+                    'Henüz seri yok.',
+          ),
+        ),
         const SizedBox(width: 12),
-        Expanded(child: _statTile('$_totalDone', 'Toplam')),
+        Expanded(
+          child: _statTile('$_totalDone', 'Tamamlanan', 'Tamamlanan',
+              'Son 90 günde alışkanlıklarını toplam kaç kez başardığın. '
+                  'Her başarılı alışkanlık-gün 1 sayılır (3 alışkanlığı bir '
+                  'gün başarırsan 3 eklenir).'),
+        ),
       ],
     );
   }
 
-  Widget _statTile(String value, String label) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
+  Widget _statTile(String value, String label, String infoTitle, String info) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFF272231)),
+        onTap: () => _showStatInfo(infoTitle, info),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: const Color(0xFF272231)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(value,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.5)),
+                  ),
+                  const Icon(Icons.info_outline,
+                      size: 13, color: AppColors.textSecondary),
+                ],
+              ),
+              const SizedBox(height: 2),
+              Text(label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.textSecondary)),
+            ],
+          ),
+        ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(value,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.5)),
-          const SizedBox(height: 2),
-          Text(label,
-              style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.textSecondary)),
+    );
+  }
+
+  void _showStatInfo(String title, String body) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title),
+        content: Text(body, style: const TextStyle(height: 1.4)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Anladım'),
+          ),
         ],
       ),
     );
@@ -471,8 +532,15 @@ class _RingPainter extends CustomPainter {
     canvas.drawArc(rect, 0, 2 * math.pi, false, track);
 
     if (value <= 0) return;
+    // Son renk = ilk renk: boylece halkanin baslangic/bitis birlesiminde
+    // (yuvarlak ucun tastigi yerde) renk kopuklugu/pembe leke olmaz.
     final shader = const SweepGradient(
-      colors: [Color(0xFF6366F1), Color(0xFFA855F7), Color(0xFFB39DFF)],
+      colors: [
+        Color(0xFF6366F1),
+        Color(0xFFA855F7),
+        Color(0xFFB39DFF),
+        Color(0xFF6366F1),
+      ],
       startAngle: 0,
       endAngle: 2 * math.pi,
       transform: GradientRotation(-math.pi / 2),

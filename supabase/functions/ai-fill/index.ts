@@ -1,21 +1,24 @@
 // Supabase Edge Function: "ai-fill"
 // -----------------------------------------------------------------------------
 // Kullanicinin serbest metnini ("bugun 1 saat kostum, 30 sayfa okudum...")
-// alir, metrik listesiyle birlikte Claude'a gonderir ve yapilandirilmis
-// giris onerileri dondurur. Anthropic API anahtari SADECE burada (sunucuda)
+// alir, metrik listesiyle birlikte Gemini'ye gonderir ve yapilandirilmis
+// giris onerileri dondurur. Gemini API anahtari SADECE burada (sunucuda)
 // bulunur; uygulamaya gomulmez.
 //
 // Kurulum (terminalden, bir kez):
-//   supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
-//   supabase functions deploy ai-fill
+//   npx supabase secrets set GEMINI_API_KEY=...
+//   npx supabase functions deploy ai-fill
+//
+// API anahtarini https://aistudio.google.com adresinden ucretsiz alabilirsin
+// (ucretsiz katman bu kullanim icin yeterli).
 // -----------------------------------------------------------------------------
 
-const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
 
 // Kullanilacak model. Bu gorev (gunu yapilandirilmis girise cevirme) basit
-// oldugu icin en ucuz/hizli model Haiku secildi. Daha kaliteli istersen
-// "claude-sonnet-4-6" ya da "claude-opus-4-8" yapabilirsin.
-const MODEL = "claude-haiku-4-5";
+// oldugu icin ailenin EN UCUZ/HIZLI modeli secildi. Daha kaliteli istersen
+// "gemini-2.5-flash" ya da "gemini-2.5-pro" yapabilirsin.
+const MODEL = "gemini-2.5-flash-lite";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -30,8 +33,8 @@ Deno.serve(async (req) => {
   }
 
   try {
-    if (!ANTHROPIC_API_KEY) {
-      return json({ error: "Sunucuda ANTHROPIC_API_KEY tanimli degil." }, 500);
+    if (!GEMINI_API_KEY) {
+      return json({ error: "Sunucuda GEMINI_API_KEY tanimli degil." }, 500);
     }
 
     const body = await req.json();
@@ -74,34 +77,34 @@ Kurallar:
 - Emin olamadigin seyleri uydurmadan birak.
 - "reply" alaninda kullaniciya kisa, samimi, Turkce bir ozet yaz (orn. "Sunlari isaretledim, onaylar misin?").`;
 
-    // Modelin yapilandirilmis cevap vermesi icin tek bir arac (tool) tanimlariz
-    // ve onu kullanmaya zorlariz.
-    const tool = {
+    // Modelin yapilandirilmis cevap vermesi icin tek bir fonksiyon tanimlariz
+    // ve onu cagirmaya zorlariz (functionCallingConfig: ANY).
+    const functionDeclaration = {
       name: "propose_day_entries",
       description:
         "Kullanicinin anlattiklarini takip uygulamasi girislerine cevir.",
-      input_schema: {
-        type: "object",
+      parameters: {
+        type: "OBJECT",
         properties: {
           reply: {
-            type: "string",
+            type: "STRING",
             description: "Kullaniciya gosterilecek kisa Turkce ozet/yanit.",
           },
           entries: {
-            type: "array",
+            type: "ARRAY",
             items: {
-              type: "object",
+              type: "OBJECT",
               properties: {
-                metric_id: { type: "string" },
-                metric_name: { type: "string" },
+                metric_id: { type: "STRING" },
+                metric_name: { type: "STRING" },
                 type: {
-                  type: "string",
+                  type: "STRING",
                   enum: ["numeric", "boolean", "tag", "text"],
                 },
-                num_value: { type: ["number", "null"] },
-                bool_value: { type: ["boolean", "null"] },
-                text_value: { type: ["string", "null"] },
-                tags: { type: "array", items: { type: "string" } },
+                num_value: { type: "NUMBER", nullable: true },
+                bool_value: { type: "BOOLEAN", nullable: true },
+                text_value: { type: "STRING", nullable: true },
+                tags: { type: "ARRAY", items: { type: "STRING" } },
               },
               required: ["metric_id", "type"],
             },
@@ -111,44 +114,56 @@ Kurallar:
       },
     };
 
-    const messages = [
-      ...history.map((t) => ({ role: t.role, content: t.content })),
-      { role: "user", content: message },
+    // Gecmis + guncel mesaj (Gemini rolleri: "user" / "model").
+    const contents = [
+      ...history.map((t) => ({
+        role: t.role === "assistant" ? "model" : "user",
+        parts: [{ text: t.content }],
+      })),
+      { role: "user", parts: [{ text: message }] },
     ];
 
-    const anthropicRes = await fetch("https://api.anthropic.com/v1/messages", {
+    const url =
+      `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
+
+    const geminiRes = await fetch(url, {
       method: "POST",
       headers: {
         "content-type": "application/json",
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
+        "x-goog-api-key": GEMINI_API_KEY,
       },
       body: JSON.stringify({
-        model: MODEL,
-        max_tokens: 1024,
-        system,
-        tools: [tool],
-        tool_choice: { type: "tool", name: "propose_day_entries" },
-        messages,
+        systemInstruction: { parts: [{ text: system }] },
+        contents,
+        tools: [{ functionDeclarations: [functionDeclaration] }],
+        toolConfig: {
+          functionCallingConfig: {
+            mode: "ANY",
+            allowedFunctionNames: ["propose_day_entries"],
+          },
+        },
+        generationConfig: { maxOutputTokens: 2048, temperature: 0.2 },
       }),
     });
 
-    if (!anthropicRes.ok) {
-      const errText = await anthropicRes.text();
-      return json({ error: `Claude API hatasi: ${errText}` }, 502);
+    if (!geminiRes.ok) {
+      const errText = await geminiRes.text();
+      return json({ error: `Gemini API hatasi: ${errText}` }, 502);
     }
 
-    const data = await anthropicRes.json();
-    // Zorunlu arac kullanimi nedeniyle cevap bir tool_use blogu icerir.
-    const toolUse = (data.content ?? []).find(
-      (b: { type: string }) => b.type === "tool_use",
-    );
+    const data = await geminiRes.json();
+    // Zorunlu fonksiyon cagrisi nedeniyle cevap bir functionCall icerir.
+    const parts = data?.candidates?.[0]?.content?.parts ?? [];
+    const fnCall = parts.find(
+      (p: { functionCall?: unknown }) => p.functionCall,
+    )?.functionCall;
 
-    if (!toolUse) {
+    if (!fnCall?.args) {
       return json({ error: "Model yapilandirilmis cevap dondurmedi." }, 502);
     }
 
-    return json(toolUse.input, 200);
+    // fnCall.args = { reply, entries } (uygulamanin bekledigi sema).
+    return json(fnCall.args, 200);
   } catch (e) {
     return json({ error: `Beklenmeyen hata: ${e}` }, 500);
   }
@@ -167,6 +182,7 @@ interface MetricInfo {
   type: string;
   unit?: string;
   target?: number;
+  bool_has_value?: boolean;
 }
 
 interface ChatTurn {
