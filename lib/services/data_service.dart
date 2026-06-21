@@ -28,6 +28,11 @@ class DataService {
 
   Future<void> signOut() => _client.auth.signOut();
 
+  // Sifre sifirlama baglantisini e-postaya gonderir.
+  Future<void> sendPasswordReset(String email) async {
+    await _client.auth.resetPasswordForEmail(email.trim());
+  }
+
   // Kullanicinin gosterilen adi (auth metadata'da saklanir, buluta senkron).
   String? get displayName {
     final v = currentUser?.userMetadata?['display_name'];

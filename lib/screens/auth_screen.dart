@@ -36,6 +36,11 @@ class _AuthScreenState extends State<AuthScreen> {
       setState(() => _error = 'E-posta ve şifre boş olamaz.');
       return;
     }
+    // Kayitta daha guclu sifre iste.
+    if (!_isLogin && pass.length < 8) {
+      setState(() => _error = 'Şifre en az 8 karakter olmalı.');
+      return;
+    }
 
     setState(() {
       _loading = true;
@@ -63,6 +68,56 @@ class _AuthScreenState extends State<AuthScreen> {
       setState(() => _error = e.toString());
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  // "Sifremi unuttum": e-posta girilir, sifirlama baglantisi gonderilir.
+  Future<void> _forgotPassword() async {
+    final ctrl = TextEditingController(text: _emailCtrl.text.trim());
+    final email = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Şifre sıfırlama'),
+        content: TextField(
+          controller: ctrl,
+          keyboardType: TextInputType.emailAddress,
+          autocorrect: false,
+          autofocus: true,
+          decoration: const InputDecoration(
+            labelText: 'E-posta',
+            hintText: 'Hesabının e-postası',
+          ),
+          onSubmitted: (v) => Navigator.pop(ctx, v),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('İptal'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, ctrl.text),
+            child: const Text('Bağlantı gönder'),
+          ),
+        ],
+      ),
+    );
+    final mail = (email ?? '').trim();
+    if (mail.isEmpty) return;
+    try {
+      await _data.sendPasswordReset(mail);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+                'Sıfırlama bağlantısı e-postana gönderildi (varsa spam klasörüne de bak).'),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Gönderilemedi: $e')));
+      }
     }
   }
 
@@ -164,7 +219,12 @@ class _AuthScreenState extends State<AuthScreen> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 10),
+                if (_isLogin)
+                  TextButton(
+                    onPressed: _loading ? null : _forgotPassword,
+                    child: const Text('Şifremi unuttum'),
+                  ),
+                const SizedBox(height: 4),
                 TextButton(
                   onPressed: _loading
                       ? null

@@ -1,0 +1,6 @@
+project_id = "ryspyidfaqgqexjqfpcz"
+
+# AI fonksiyonu: yalnizca giris yapmis (gecerli JWT'li) kullanicilar
+# cagirabilsin. Boylece anon key'i bilen biri Gemini kotasini sömüremez.
+[functions.ai-fill]
+verify_jwt = true
