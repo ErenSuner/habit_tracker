@@ -15,10 +15,11 @@
 
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
 
-// Kullanilacak model. Bu gorev (gunu yapilandirilmis girise cevirme) basit
-// oldugu icin ailenin EN UCUZ/HIZLI modeli secildi. Daha kaliteli istersen
-// "gemini-2.5-flash" ya da "gemini-2.5-pro" yapabilirsin.
-const MODEL = "gemini-2.5-flash-lite";
+// Kullanilacak model. Ucuz/hizli "flash-lite" sinifi bu gorev icin yeterli.
+// 3.1 Flash Lite secildi cunku ucretsiz katmanda en yuksek limitlere sahip
+// (gunluk 500 istek, dakikada 15) ve function calling destekler.
+// Alternatifler: "gemini-2.5-flash-lite" (gunluk sadece 20), "gemini-2.5-flash".
+const MODEL = "gemini-3.1-flash-lite";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
