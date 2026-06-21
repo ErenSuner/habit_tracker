@@ -150,15 +150,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 onTap: _pickTime,
               ),
-            _tile(
-              icon: Icons.science_outlined,
-              title: 'Test bildirimi gönder',
-              subtitle: 'Bildirimlerin çalıştığını hemen dene',
-              onTap: () async {
-                await NotificationService.requestPermission();
-                await NotificationService.showTest();
-              },
-            ),
           ]),
           const SizedBox(height: 22),
 

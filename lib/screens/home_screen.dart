@@ -163,30 +163,21 @@ class HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final dateLabel = DateFormat('d MMMM EEEE', 'tr_TR').format(_today);
     final name = _displayName();
     return Scaffold(
       appBar: AppBar(
-        toolbarHeight: 76,
         titleSpacing: 24,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(dateLabel,
-                style: const TextStyle(
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.textSecondary)),
-            const SizedBox(height: 2),
-            Text(
-              name.isEmpty ? _greeting() : '${_greeting()}, $name',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.5,
-                  ),
+        title: ShaderMask(
+          shaderCallback: (r) => AppColors.gradient.createShader(r),
+          child: const Text(
+            'Habit Tracker',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.3,
+              color: Colors.white,
             ),
-          ],
+          ),
         ),
         actions: [
           Padding(
@@ -252,10 +243,26 @@ class HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _dashboard() {
+    final dateLabel = DateFormat('d MMMM EEEE', 'tr_TR').format(_today);
+    final name = _displayName();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
+        Text(dateLabel,
+            style: const TextStyle(
+                fontSize: 13.5,
+                fontWeight: FontWeight.w500,
+                color: AppColors.textSecondary)),
+        const SizedBox(height: 2),
+        Text(
+          name.isEmpty ? _greeting() : '${_greeting()}, $name',
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.5,
+              ),
+        ),
+        const SizedBox(height: 18),
         _heroCard(),
         const SizedBox(height: 14),
         _statTiles(),

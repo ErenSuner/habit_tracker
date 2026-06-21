@@ -76,24 +76,6 @@ class NotificationService {
 
   static Future<void> cancel() => _plugin.cancel(_reminderId);
 
-  // Test amacli: hemen bir bildirim gosterir.
-  static Future<void> showTest() async {
-    await _plugin.show(
-      9999,
-      'Test bildirimi',
-      'Bildirimler calisiyor! Aksam hatirlatmalari da boyle gelecek.',
-      const NotificationDetails(
-        android: AndroidNotificationDetails(
-          _channelId,
-          _channelName,
-          channelDescription: 'Gunu doldurmayi unutma hatirlatmasi',
-          importance: Importance.high,
-          priority: Priority.high,
-        ),
-      ),
-    );
-  }
-
   // Verilen saatin bir sonraki gerceklesme anini hesaplar.
   static tz.TZDateTime _nextInstanceOf(TimeOfDay time) {
     final now = tz.TZDateTime.now(tz.local);

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../config/app_colors.dart';
 import '../services/data_service.dart';
 import 'ai_screen.dart';
 import 'charts_screen.dart';
@@ -71,40 +72,87 @@ class _HomeShellState extends State<HomeShell> {
     }
   }
 
+  // Sekme tanimlari: (yuvarlatilmis ikon, etiket). Ikon hem secili hem
+  // pasif durumda ayni; yalnizca renk degisir.
+  static const _tabs = <(IconData, String)>[
+    (Icons.home_rounded, 'Ana sayfa'),
+    (Icons.calendar_today_rounded, 'Geçmiş'),
+    (Icons.bar_chart_rounded, 'Grafikler'),
+    (Icons.auto_awesome_rounded, 'AI'),
+    (Icons.settings_rounded, 'Ayarlar'),
+  ];
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: IndexedStack(index: _index, children: _screens),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _index,
-        onDestinationSelected: _onSelect,
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home),
-            label: 'Ana sayfa',
+      bottomNavigationBar: _buildNavBar(),
+    );
+  }
+
+  Widget _buildNavBar() {
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.navBar,
+        border: Border(top: BorderSide(color: AppColors.border)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          child: Row(
+            children: [
+              for (var i = 0; i < _tabs.length; i++) _navItem(i),
+            ],
           ),
-          NavigationDestination(
-            icon: Icon(Icons.calendar_month_outlined),
-            selectedIcon: Icon(Icons.calendar_month),
-            label: 'Geçmiş',
+        ),
+      ),
+    );
+  }
+
+  Widget _navItem(int i) {
+    final selected = _index == i;
+    final (icon, label) = _tabs[i];
+    return Expanded(
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => _onSelect(i),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOut,
+          margin: const EdgeInsets.symmetric(horizontal: 4),
+          padding: const EdgeInsets.symmetric(vertical: 5),
+          decoration: BoxDecoration(
+            color: selected
+                ? AppColors.purple.withValues(alpha: 0.16)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(14),
           ),
-          NavigationDestination(
-            icon: Icon(Icons.show_chart_outlined),
-            selectedIcon: Icon(Icons.show_chart),
-            label: 'Grafikler',
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: 22,
+                color:
+                    selected ? AppColors.purpleBright : AppColors.textSecondary,
+              ),
+              const SizedBox(height: 3),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                  color: selected
+                      ? AppColors.purpleBright
+                      : AppColors.textSecondary,
+                ),
+              ),
+            ],
           ),
-          NavigationDestination(
-            icon: Icon(Icons.auto_awesome_outlined),
-            selectedIcon: Icon(Icons.auto_awesome),
-            label: 'AI',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.settings_outlined),
-            selectedIcon: Icon(Icons.settings),
-            label: 'Ayarlar',
-          ),
-        ],
+        ),
       ),
     );
   }
