@@ -18,9 +18,11 @@ create table if not exists public.metrics (
   -- tip: 'numeric' | 'boolean' | 'tag' | 'text'
   type        text not null check (type in ('numeric','boolean','tag','text')),
   unit        text,                       -- ornek: 'kcal', 'sayfa', 'dk'
-  target      numeric,                    -- sayisal hedef (verim hesabi icin)
-  -- hedef yonu: 'up' = cok olmasi iyi (adim), 'down' = az olmasi iyi (kalori)
-  target_direction text not null default 'up' check (target_direction in ('up','down')),
+  target      numeric,                    -- sayisal hedef; range'de UST sinir
+  target_min  numeric,                    -- yalnizca range yonunde: ALT sinir
+  -- hedef yonu: 'up' = cok olmasi iyi (adim), 'down' = az olmasi iyi (kalori),
+  -- 'range' = [target_min, target] araliginda olmasi iyi (uyku saati)
+  target_direction text not null default 'up' check (target_direction in ('up','down','range')),
   weight      numeric not null default 1, -- verim puanindaki agirligi
   -- boolean metriklerde "iyi" durum hangisi? true = "evet iyi", false = "hayir iyi"
   good_value  boolean not null default true,
@@ -76,6 +78,18 @@ create table if not exists public.daily_scores (
   primary key (user_id, entry_date)
 );
 
+-- ----------------------------------------------------------------
+-- 5) screen_times : gunluk ekran suresi (dakika)
+--    Telefondan okunur; Android gecmisi kisa tuttugu icin burada saklanir.
+-- ----------------------------------------------------------------
+create table if not exists public.screen_times (
+  user_id     uuid not null references auth.users(id) on delete cascade,
+  entry_date  date not null,
+  minutes     integer not null default 0,
+  updated_at  timestamptz not null default now(),
+  primary key (user_id, entry_date)
+);
+
 -- Hizli sorgu icin indeksler
 create index if not exists idx_entries_user_date on public.entries(user_id, entry_date);
 create index if not exists idx_entry_tags_user_date on public.entry_tags(user_id, entry_date);
@@ -87,12 +101,13 @@ alter table public.metrics       enable row level security;
 alter table public.entries       enable row level security;
 alter table public.entry_tags    enable row level security;
 alter table public.daily_scores  enable row level security;
+alter table public.screen_times  enable row level security;
 
 -- Her tablo icin: kullanici sadece kendi user_id'sine ait satirlara erisebilir.
 do $$
 declare t text;
 begin
-  foreach t in array array['metrics','entries','entry_tags','daily_scores'] loop
+  foreach t in array array['metrics','entries','entry_tags','daily_scores','screen_times'] loop
     execute format('drop policy if exists "own_select" on public.%I;', t);
     execute format('drop policy if exists "own_insert" on public.%I;', t);
     execute format('drop policy if exists "own_update" on public.%I;', t);

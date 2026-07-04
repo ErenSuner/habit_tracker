@@ -25,6 +25,7 @@ class _MetricEditScreenState extends State<MetricEditScreen> {
   late final TextEditingController _nameCtrl;
   late final TextEditingController _unitCtrl;
   late final TextEditingController _targetCtrl;
+  late final TextEditingController _targetMinCtrl; // aralik: alt sinir
 
   String? _selectedCategory;
   List<String> _categories = [];
@@ -51,6 +52,9 @@ class _MetricEditScreenState extends State<MetricEditScreen> {
     _unitCtrl = TextEditingController(text: m?.unit ?? '');
     _targetCtrl = TextEditingController(
       text: m?.target != null ? _trimNum(m!.target!) : '',
+    );
+    _targetMinCtrl = TextEditingController(
+      text: m?.targetMin != null ? _trimNum(m!.targetMin!) : '',
     );
     _selectedCategory = (m?.category?.trim().isEmpty ?? true) ? null : m!.category;
     _type = m?.type ?? MetricType.numeric;
@@ -160,6 +164,7 @@ class _MetricEditScreenState extends State<MetricEditScreen> {
     _nameCtrl.dispose();
     _unitCtrl.dispose();
     _targetCtrl.dispose();
+    _targetMinCtrl.dispose();
     super.dispose();
   }
 
@@ -179,6 +184,10 @@ class _MetricEditScreenState extends State<MetricEditScreen> {
           : null,
       target: _wantsNumber
           ? double.tryParse(_targetCtrl.text.replaceAll(',', '.'))
+          : null,
+      // Alt sinir yalnizca "aralik" yonunde anlamli.
+      targetMin: _wantsNumber && _direction == TargetDirection.range
+          ? double.tryParse(_targetMinCtrl.text.replaceAll(',', '.'))
           : null,
       targetDirection: _direction,
       weight: _weight,
@@ -330,7 +339,7 @@ class _MetricEditScreenState extends State<MetricEditScreen> {
         const SizedBox(height: 16),
         SwitchListTile(
           contentPadding: EdgeInsets.zero,
-          title: const Text('"Evet" seçilince sayı da sor'),
+          title: const Text('Sayı sor'),
           subtitle: const Text('örn. kaç dakika, kaç sayfa'),
           value: _boolHasValue,
           onChanged: (v) => setState(() => _boolHasValue = v),
@@ -342,20 +351,27 @@ class _MetricEditScreenState extends State<MetricEditScreen> {
     // Sayisal ayarlar (numeric ya da degerli boolean)
     if (_wantsNumber) {
       final isUp = _direction == TargetDirection.up;
+      final isRange = _direction == TargetDirection.range;
+
+      double? parseNum(String s) =>
+          double.tryParse(s.trim().replaceAll(',', '.'));
+
       widgets.addAll([
-        _label('Sayının artması'),
+        _label('Sayı nasıl değerlendirilsin?'),
         const SizedBox(height: 8),
         SegmentedButton<TargetDirection>(
           segments: const [
             ButtonSegment(
               value: TargetDirection.up,
-              label: Text('İyi'),
-              icon: Icon(Icons.trending_up),
+              label: Text('Artış iyi'),
             ),
             ButtonSegment(
               value: TargetDirection.down,
-              label: Text('Kötü'),
-              icon: Icon(Icons.trending_down),
+              label: Text('Azalış iyi'),
+            ),
+            ButtonSegment(
+              value: TargetDirection.range,
+              label: Text('Aralık iyi'),
             ),
           ],
           selected: {_direction},
@@ -370,20 +386,68 @@ class _MetricEditScreenState extends State<MetricEditScreen> {
           ),
         ),
         const SizedBox(height: 16),
-        TextFormField(
-          controller: _targetCtrl,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: InputDecoration(
-            labelText: isUp
-                ? 'Günlük hedef (isteğe bağlı)'
-                : 'Günlük üst sınır (isteğe bağlı)',
-            hintText: isUp ? 'ulaşmak istediğin' : 'aşmaman gereken',
+        if (isRange) ...[
+          // Aralik: alt ve ust sinir yan yana, ikisi de zorunlu.
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: TextFormField(
+                  controller: _targetMinCtrl,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(
+                    labelText: 'Alt sınır',
+                    hintText: 'örn. 7',
+                  ),
+                  validator: (v) {
+                    if (_direction != TargetDirection.range) return null;
+                    if (parseNum(v ?? '') == null) return 'Gerekli';
+                    return null;
+                  },
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: TextFormField(
+                  controller: _targetCtrl,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(
+                    labelText: 'Üst sınır',
+                    hintText: 'örn. 9',
+                  ),
+                  validator: (v) {
+                    if (_direction != TargetDirection.range) return null;
+                    final hi = parseNum(v ?? '');
+                    if (hi == null) return 'Gerekli';
+                    final lo = parseNum(_targetMinCtrl.text);
+                    if (lo != null && hi <= lo) return 'Alttan büyük olmalı';
+                    return null;
+                  },
+                ),
+              ),
+            ],
           ),
-        ),
-        const SizedBox(height: 6),
-        _hint(isUp
-            ? 'Hedefe ulaştıkça verim artar.'
-            : 'Üst sınırı aştıkça verim düşer (ceza).'),
+          const SizedBox(height: 6),
+          _hint('Aralık içinde kalırsan verim tam; dışına çıktıkça düşer. '
+              'Örn. uyku için 7–9 saat.'),
+        ] else ...[
+          TextFormField(
+            controller: _targetCtrl,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: InputDecoration(
+              labelText: isUp
+                  ? 'Günlük hedef (isteğe bağlı)'
+                  : 'Günlük üst sınır (isteğe bağlı)',
+              hintText: isUp ? 'ulaşmak istediğin' : 'aşmaman gereken',
+            ),
+          ),
+          const SizedBox(height: 6),
+          _hint(isUp
+              ? 'Hedefe ulaştıkça verim artar.'
+              : 'Üst sınırı aştıkça verim düşer (ceza).'),
+        ],
         const SizedBox(height: 20),
       ]);
     }

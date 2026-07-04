@@ -232,13 +232,21 @@ class _MetricsScreenState extends State<MetricsScreen> {
     if (m.category != null && m.category!.isNotEmpty) parts.add(m.category!);
     parts.add(m.type.label);
     if (m.type == MetricType.numeric && m.target != null) {
-      final dir = m.targetDirection == TargetDirection.down ? '≤' : '≥';
-      parts.add(
-          'hedef $dir ${m.target!.toInt()}${m.unit != null ? ' ${m.unit}' : ''}');
+      final unit = m.unit != null ? ' ${m.unit}' : '';
+      if (m.targetDirection == TargetDirection.range && m.targetMin != null) {
+        // Aralik hedefi: iki siniri birden goster.
+        parts.add('hedef ${_num(m.targetMin!)}–${_num(m.target!)}$unit');
+      } else {
+        final dir = m.targetDirection == TargetDirection.down ? '≤' : '≥';
+        parts.add('hedef $dir ${_num(m.target!)}$unit');
+      }
     }
     if (m.type != MetricType.text) parts.add('ağırlık ${m.weight}');
     return parts.join(' · ');
   }
+
+  String _num(double v) =>
+      v == v.roundToDouble() ? v.toInt().toString() : v.toString();
 
   IconData _iconForType(MetricType t) => switch (t) {
         MetricType.numeric => Icons.tag,

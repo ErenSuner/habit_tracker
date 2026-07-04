@@ -8,6 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'config/app_theme.dart';
 import 'config/supabase_config.dart';
 import 'services/notification_service.dart';
+import 'services/screen_time_worker.dart';
 import 'screens/auth_screen.dart';
 import 'screens/home_shell.dart';
 import 'screens/new_password_screen.dart';
@@ -53,6 +54,10 @@ Future<void> _bootstrap() async {
       publishableKey: SupabaseConfig.supabaseAnonKey,
     );
   }
+
+  // Ekran suresini uygulama kapaliyken de esitleyen arka plan gorevi
+  // (yalnizca Android'de calisir; kurulamazsa sessizce atlanir).
+  await ScreenTimeWorker.register();
 }
 
 class HabitTrackerApp extends StatelessWidget {

@@ -13,6 +13,7 @@ class SimpleLineChart extends StatelessWidget {
   final bool percent; // y ekseni % mi?
   final String? unit;
   final double? targetLine;
+  final double? targetLine2; // aralik hedefinde ikinci (alt) sinir cizgisi
   final double? avgLine;
 
   const SimpleLineChart({
@@ -25,6 +26,7 @@ class SimpleLineChart extends StatelessWidget {
     this.percent = false,
     this.unit,
     this.targetLine,
+    this.targetLine2,
     this.avgLine,
   });
 
@@ -50,7 +52,22 @@ class SimpleLineChart extends StatelessWidget {
           show: true,
           alignment: Alignment.topRight,
           style: TextStyle(fontSize: 10, color: color),
-          labelResolver: (_) => 'hedef',
+          // Iki cizgili aralikta ust/alt olarak adlandir.
+          labelResolver: (_) => targetLine2 != null ? 'üst' : 'hedef',
+        ),
+      ));
+    }
+    if (targetLine2 != null) {
+      extraLines.add(HorizontalLine(
+        y: targetLine2!,
+        color: color.withValues(alpha: 0.5),
+        strokeWidth: 1,
+        dashArray: [6, 4],
+        label: HorizontalLineLabel(
+          show: true,
+          alignment: Alignment.bottomRight,
+          style: TextStyle(fontSize: 10, color: color),
+          labelResolver: (_) => 'alt',
         ),
       ));
     }

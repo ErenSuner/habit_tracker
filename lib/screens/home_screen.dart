@@ -9,6 +9,7 @@ import '../services/data_service.dart';
 import '../services/stats_util.dart';
 import '../widgets/day_entry_form.dart';
 import '../widgets/profile_dialog.dart';
+import '../widgets/screen_time_card.dart';
 
 // "Ana sayfa": ustte pano (verim halkasi, streak'ler, gun ozeti, mini trend),
 // altinda bugunun giris kartlari (DayEntryForm).
@@ -22,6 +23,7 @@ class HomeScreen extends StatefulWidget {
 class HomeScreenState extends State<HomeScreen> {
   final _data = DataService();
   final _formKey = GlobalKey<DayEntryFormState>();
+  final _screenTimeKey = GlobalKey<ScreenTimeCardState>();
 
   final DateTime _today = DateTime(
     DateTime.now().year,
@@ -51,6 +53,7 @@ class HomeScreenState extends State<HomeScreen> {
 
   void reload() {
     _formKey.currentState?.reload();
+    _screenTimeKey.currentState?.reload();
     _loadDashboard();
   }
 
@@ -83,18 +86,6 @@ class HomeScreenState extends State<HomeScreen> {
         }
       }
 
-      // "Aktif gunler": kullanicinin o gun en az bir veri girdigi gunler.
-      // Boolean "Hayir iyi" metriklerde iyi gun (yapmadigin gun) kayit
-      // birakmadigi icin seri/toplam hesabini bu havuzla sinirliyoruz;
-      // boylece veri girilmeyen gunler sahte seri uretmez.
-      final activeDays = <DateTime>{};
-      for (final e in entries) {
-        activeDays.add(_dateOnly(e.date));
-      }
-      for (final s in tagDays.values) {
-        activeDays.addAll(s.map(_dateOnly));
-      }
-
       final streaks = <_Streak>[];
       var bestStreak = 0;
       String? bestStreakName;
@@ -103,17 +94,23 @@ class HomeScreenState extends State<HomeScreen> {
         Set<DateTime>? success;
         switch (m.type) {
           case MetricType.boolean:
-            // Cevapsiz = "Hayir/yapmadim" (false) varsayilir (skor motoruyla
-            // ayni kural); yalnizca aktif gunleri degerlendiririz.
+            // YALNIZCA acik cevaplar sayilir (skor motoruyla ayni kural):
+            // kayit birakilmayan gun ne basari ne seri uretir. Boylece yeni
+            // eklenen "Hayir iyi" bir metrik gecmis bos gunlerden sahte
+            // seri kazanmaz.
             final vals = boolByMetric[m.id] ?? {};
             success = {
-              for (final d in activeDays)
-                if ((vals[d] ?? false) == m.goodValue) d,
+              for (final x in vals.entries)
+                if (x.value == m.goodValue) x.key,
             };
           case MetricType.tag:
             success = tagDays[m.id] ?? {};
           case MetricType.numeric:
-            if (m.target != null && m.target! > 0) {
+            // Hedef tanimliysa (aralikta iki sinir da gerekli) basari say.
+            final hasTarget = m.targetDirection == TargetDirection.range
+                ? (m.target != null && m.targetMin != null)
+                : (m.target != null && m.target! > 0);
+            if (hasTarget) {
               final vals = numByMetric[m.id] ?? {};
               success = {
                 for (final x in vals.entries)
@@ -158,8 +155,11 @@ class HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  bool _meets(Metric m, double v) =>
-      m.targetDirection == TargetDirection.up ? v >= m.target! : v <= m.target!;
+  bool _meets(Metric m, double v) => switch (m.targetDirection) {
+        TargetDirection.up => v >= m.target!,
+        TargetDirection.down => v <= m.target!,
+        TargetDirection.range => v >= m.targetMin! && v <= m.target!,
+      };
 
   @override
   Widget build(BuildContext context) {
@@ -266,6 +266,8 @@ class HomeScreenState extends State<HomeScreen> {
         _heroCard(),
         const SizedBox(height: 14),
         _statTiles(),
+        const SizedBox(height: 14),
+        ScreenTimeCard(key: _screenTimeKey),
         const SizedBox(height: 28),
         Padding(
           padding: const EdgeInsets.only(left: 4, bottom: 4),

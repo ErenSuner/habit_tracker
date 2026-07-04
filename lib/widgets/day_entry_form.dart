@@ -327,10 +327,9 @@ class DayEntryFormState extends State<DayEntryForm> {
   Widget _metricCard(Metric m) {
     final filled = _isFilled(m);
     final isBool = m.type == MetricType.boolean;
-    // Boolean'da tik = "Evet, yaptim" (boolValue==true) anlamina gelir;
-    // verime etkisi goodValue'ya gore skor motorunda hesaplanir.
-    final boolDone = isBool && _entries[m.id]?.boolValue == true;
-    final highlight = isBool ? boolDone : filled;
+    // Boolean'da vurgulama acik cevap verilince yapilir (Evet YA DA Hayir);
+    // hangisinin "iyi" oldugunu skor motoru goodValue'ya gore degerlendirir.
+    final highlight = filled;
     return GestureDetector(
       onTap: () => _onRowTap(m),
       behavior: HitTestBehavior.opaque,
@@ -380,10 +379,10 @@ class DayEntryFormState extends State<DayEntryForm> {
               ),
             ),
             const SizedBox(width: 12),
-            // Tik isareti SADECE Evet/Hayir metriklerinde; digerlerinde
-            // duzenleme oku (isaretleme mantigi yok).
+            // Evet/Hayir metriklerinde iki durum dugmesi (X ve tik);
+            // digerlerinde duzenleme oku (isaretleme mantigi yok).
             if (isBool)
-              _checkCircle(boolDone)
+              _boolCircles(m)
             else
               const Icon(Icons.chevron_right,
                   size: 22, color: AppColors.textSecondary),
@@ -422,19 +421,62 @@ class DayEntryFormState extends State<DayEntryForm> {
     );
   }
 
-  Widget _checkCircle(bool on) {
+  // Evet/Hayir metrikleri icin iki durum dugmesi: X (Hayir) ve tik (Evet).
+  // Secili dugmeye tekrar dokunmak cevabi temizler (bos = cevapsiz).
+  // "Hic giris yok" ile "Hayir" farkli seylerdir: bos gun puan almaz.
+  Widget _boolCircles(Metric m) {
+    final v = _entries[m.id]?.boolValue;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => _setBool(m, v == false ? null : false),
+          child: _stateCircle(
+            on: v == false,
+            icon: Icons.close,
+            activeColor: AppColors.danger,
+          ),
+        ),
+        const SizedBox(width: 10),
+        GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () {
+            // Sayi da isteyen metrikte Evet, sayiyla birlikte sorulur.
+            if (m.boolHasValue) {
+              _editBoolValue(m);
+            } else {
+              _setBool(m, v == true ? null : true);
+            }
+          },
+          child: _stateCircle(
+            on: v == true,
+            icon: Icons.check,
+            gradient: AppColors.gradient,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _stateCircle({
+    required bool on,
+    required IconData icon,
+    Gradient? gradient,
+    Color? activeColor,
+  }) {
     return Container(
       width: 28,
       height: 28,
       alignment: Alignment.center,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        gradient: on ? AppColors.gradient : null,
+        gradient: on ? gradient : null,
+        color: (on && gradient == null) ? activeColor : null,
         border:
             on ? null : Border.all(color: const Color(0xFF3A3450), width: 2),
       ),
-      child:
-          on ? const Icon(Icons.check, size: 16, color: Colors.white) : null,
+      child: on ? Icon(icon, size: 16, color: Colors.white) : null,
     );
   }
 
@@ -444,9 +486,10 @@ class DayEntryFormState extends State<DayEntryForm> {
         if (m.boolHasValue) {
           _editBoolValue(m);
         } else {
-          // Tik = "Evet, yaptim" (true); tekrar dokununca isaret kalkar (null).
-          final done = _entries[m.id]?.boolValue == true;
-          _setBool(m, done ? null : true);
+          // Karta dokunmak "Evet" isaretler; tekrar dokununca temizlenir.
+          // Acik "Hayir" icin karttaki X dugmesi kullanilir.
+          final yes = _entries[m.id]?.boolValue == true;
+          _setBool(m, yes ? null : true);
         }
       case MetricType.numeric:
         _editNumeric(m);
@@ -461,21 +504,29 @@ class DayEntryFormState extends State<DayEntryForm> {
   String? _targetLabel(Metric m) {
     if (m.target == null) return null;
     final unit = m.unit != null ? ' ${m.unit}' : '';
-    return m.targetDirection == TargetDirection.down
-        ? 'Sınır ≤ ${_trimNum(m.target!)}$unit'
-        : 'Hedef ≥ ${_trimNum(m.target!)}$unit';
+    return switch (m.targetDirection) {
+      TargetDirection.down => 'Sınır ≤ ${_trimNum(m.target!)}$unit',
+      TargetDirection.range when m.targetMin != null =>
+        'Aralık ${_trimNum(m.targetMin!)}–${_trimNum(m.target!)}$unit',
+      TargetDirection.range => 'Sınır ≤ ${_trimNum(m.target!)}$unit',
+      TargetDirection.up => 'Hedef ≥ ${_trimNum(m.target!)}$unit',
+    };
   }
 
   // Satirin altindaki aciklama metni.
   String _metaFor(Metric m) {
     switch (m.type) {
       case MetricType.boolean:
-        final done = _entries[m.id]?.boolValue == true;
-        if (m.boolHasValue && done && _entries[m.id]?.numValue != null) {
-          return '${_trimNum(_entries[m.id]!.numValue!)}'
-              '${m.unit != null ? ' ${m.unit}' : ''}';
+        final v = _entries[m.id]?.boolValue;
+        if (v == true) {
+          if (m.boolHasValue && _entries[m.id]?.numValue != null) {
+            return '${_trimNum(_entries[m.id]!.numValue!)}'
+                '${m.unit != null ? ' ${m.unit}' : ''}';
+          }
+          return 'Evet';
         }
-        return done ? 'Yaptım' : 'Dokunarak işaretle';
+        if (v == false) return 'Hayır';
+        return 'Dokunarak işaretle';
       case MetricType.numeric:
         final v = _entries[m.id]?.numValue;
         final target = _targetLabel(m);
@@ -748,14 +799,14 @@ class DayEntryFormState extends State<DayEntryForm> {
     ctrl.selection = TextSelection.collapsed(offset: ctrl.text.length);
   }
 
-  // boolHasValue olan boolean: hem isaret hem sayi girilir.
+  // boolHasValue olan boolean: cevap (Evet / Hayir / bos) + Evet'te sayi.
   Future<void> _editBoolValue(Metric m) async {
     final ctrl = _controllers.putIfAbsent(m.id, () => TextEditingController());
-    var checked = _entries[m.id]?.boolValue == true;
-    // Kayitli sayi varsa onu; yoksa isaretliyken 0 yerine 1 ile basla.
+    bool? answer = _entries[m.id]?.boolValue;
+    // Kayitli sayi varsa onu; yoksa Evet'ken 0 yerine 1 ile basla.
     ctrl.text = _entries[m.id]?.numValue != null
         ? _trimNum(_entries[m.id]!.numValue!)
-        : (checked ? '1' : '');
+        : (answer == true ? '1' : '');
     await _showSheet(
       title: m.name,
       child: StatefulBuilder(
@@ -763,17 +814,32 @@ class DayEntryFormState extends State<DayEntryForm> {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Bugün yaptım'),
-                value: checked,
-                onChanged: (v) => setSheet(() {
-                  checked = v;
-                  // Yeni isaretlendi ve alan bossa 1 ile basla.
-                  if (v && ctrl.text.trim().isEmpty) ctrl.text = '1';
+              // Secili dugmeye tekrar dokunmak cevabi temizler (bos gun);
+              // bos gun "Hayir" sayilmaz ve puan almaz.
+              SegmentedButton<bool>(
+                segments: const [
+                  ButtonSegment(
+                    value: false,
+                    label: Text('Hayır'),
+                    icon: Icon(Icons.close),
+                  ),
+                  ButtonSegment(
+                    value: true,
+                    label: Text('Evet'),
+                    icon: Icon(Icons.check),
+                  ),
+                ],
+                selected: {if (answer != null) answer!},
+                emptySelectionAllowed: true,
+                onSelectionChanged: (s) => setSheet(() {
+                  answer = s.isEmpty ? null : s.first;
+                  // Evet secildi ve alan bossa 1 ile basla.
+                  if (answer == true && ctrl.text.trim().isEmpty) {
+                    ctrl.text = '1';
+                  }
                 }),
               ),
-              if (checked) ...[
+              if (answer == true) ...[
                 const SizedBox(height: 8),
                 // - [ sayi ] + adimlayici
                 Row(
@@ -808,8 +874,8 @@ class DayEntryFormState extends State<DayEntryForm> {
                 onPressed: () {
                   _setBool(
                     m,
-                    checked ? true : null,
-                    num: checked
+                    answer,
+                    num: answer == true
                         ? double.tryParse(ctrl.text.trim().replaceAll(',', '.'))
                         : null,
                   );

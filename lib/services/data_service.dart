@@ -268,6 +268,34 @@ class DataService {
     return map;
   }
 
+  // ---- Ekran suresi ----
+  // Android gunluk kullanim detayini yalnizca ~1 hafta tuttugu icin okunan
+  // degerler burada saklanir; 7/30/60 gunluk ortalamalar buradan hesaplanir.
+
+  Future<void> saveScreenTime(DateTime date, int minutes) async {
+    await _client.from('screen_times').upsert({
+      'user_id': _uid,
+      'entry_date': _dateStr(date),
+      'minutes': minutes,
+      'updated_at': DateTime.now().toIso8601String(),
+    }, onConflict: 'user_id,entry_date');
+  }
+
+  Future<Map<DateTime, int>> fetchScreenTimes(
+      DateTime from, DateTime to) async {
+    final rows = await _client
+        .from('screen_times')
+        .select()
+        .gte('entry_date', _dateStr(from))
+        .lte('entry_date', _dateStr(to));
+    final map = <DateTime, int>{};
+    for (final r in rows as List) {
+      map[DateTime.parse(r['entry_date'] as String)] =
+          (r['minutes'] as num).toInt();
+    }
+    return map;
+  }
+
   String _dateStr(DateTime d) =>
       '${d.year.toString().padLeft(4, '0')}-'
       '${d.month.toString().padLeft(2, '0')}-'
