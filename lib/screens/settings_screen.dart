@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../config/app_colors.dart';
 import '../services/data_service.dart';
 import '../services/notification_service.dart';
+import '../utils/friendly_error.dart';
 import '../widgets/profile_dialog.dart';
 import 'metrics_screen.dart';
 
-// "Ayarlar" sekmesi: hesap, metrik yonetimi, hatirlatma ve cikis.
+// "Ayarlar" sekmesi: hesap, metrik yonetimi, hatirlatma, hakkinda ve cikis.
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
 
@@ -96,6 +98,96 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (changed == true && mounted) setState(() {});
   }
 
+  // Gizlilik politikasi (GitHub Pages'te barindiriliyor; Play Store
+  // kaydindaki adresle ayni olmali).
+  static const _privacyUrl =
+      'https://erensuner.github.io/habit_tracker/privacy.html';
+
+  Future<void> _openPrivacy() async {
+    final ok = await launchUrl(
+      Uri.parse(_privacyUrl),
+      mode: LaunchMode.externalApplication,
+    );
+    if (!ok && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Bağlantı açılamadı.')),
+      );
+    }
+  }
+
+  // Hesabi kalici olarak siler. Yanlislikla silmeyi onlemek icin
+  // kullanicidan "sil" yazmasini ister.
+  Future<void> _deleteAccount() async {
+    final ctrl = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        var canDelete = false;
+        return StatefulBuilder(
+          builder: (ctx, setDlg) => AlertDialog(
+            title: const Text('Hesabı sil'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Hesabın ve tüm verilerin (metrikler, günlük kayıtlar, '
+                  'puanlar) kalıcı olarak silinir. Bu işlem geri alınamaz.\n\n'
+                  'Onaylamak için aşağıya "sil" yaz.',
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: ctrl,
+                  autofocus: true,
+                  decoration: const InputDecoration(hintText: 'sil'),
+                  onChanged: (v) => setDlg(
+                    () => canDelete = v.trim().toLowerCase() == 'sil',
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Vazgeç'),
+              ),
+              FilledButton(
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.danger,
+                ),
+                onPressed: canDelete ? () => Navigator.pop(ctx, true) : null,
+                child: const Text('Hesabı sil'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+    ctrl.dispose();
+    if (confirmed != true || !mounted) return;
+
+    // Silme surerken ekrani kilitleyen ilerleme gostergesi. Silme basarili
+    // olunca oturum kapanir ve bu ekran agactan kalkar (mounted=false olur);
+    // bu yuzden navigator'u onceden yakalayip onun uzerinden kapatiriz.
+    final nav = Navigator.of(context, rootNavigator: true);
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+    try {
+      await _data.deleteAccount();
+      nav.pop(); // ilerleme penceresini kapat; AuthGate girise doner.
+    } catch (e) {
+      nav.pop();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Hesap silinemedi: ${friendlyError(e)}')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final email = _data.currentUser?.email ?? '-';
@@ -153,14 +245,36 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ]),
           const SizedBox(height: 22),
 
+          _sectionTitle('Hakkında'),
+          const SizedBox(height: 8),
+          _card([
+            _tile(
+              icon: Icons.privacy_tip_outlined,
+              title: 'Gizlilik politikası',
+              subtitle: 'Hangi veriler toplanır, nasıl saklanır',
+              trailing: const Icon(Icons.open_in_new,
+                  size: 18, color: AppColors.textSecondary),
+              onTap: _openPrivacy,
+            ),
+          ]),
+          const SizedBox(height: 22),
+
+          _sectionTitle('Hesap'),
+          const SizedBox(height: 8),
           _card([
             _tile(
               icon: Icons.logout,
               title: 'Çıkış yap',
-              danger: true,
               onTap: () async {
                 await _data.signOut();
               },
+            ),
+            _tile(
+              icon: Icons.delete_forever_outlined,
+              title: 'Hesabı sil',
+              subtitle: 'Hesabını ve tüm verilerini kalıcı olarak siler',
+              danger: true,
+              onTap: _deleteAccount,
             ),
           ]),
         ],

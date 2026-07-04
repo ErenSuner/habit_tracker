@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../config/category_colors.dart';
 import '../models/metric.dart';
 import '../services/data_service.dart';
+import '../utils/friendly_error.dart';
 
 // Bir metrik (takip kalemi) ekleme veya duzenleme ekrani.
 //  - metric == null  -> yeni metrik ekleme
@@ -142,7 +143,7 @@ class _MetricEditScreenState extends State<MetricEditScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Silinemedi: $e')),
+          SnackBar(content: Text('Silinemedi: ${friendlyError(e)}')),
         );
       }
     }
@@ -198,7 +199,7 @@ class _MetricEditScreenState extends State<MetricEditScreen> {
       if (mounted) {
         setState(() => _saving = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Kaydedilemedi: $e')),
+          SnackBar(content: Text('Kaydedilemedi: ${friendlyError(e)}')),
         );
       }
     }

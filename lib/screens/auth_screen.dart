@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../config/app_colors.dart';
 import '../services/data_service.dart';
+import '../utils/friendly_error.dart';
 
 // Giris / kayit ekrani. Ayni ekran iki modda calisir:
 //  - Giris yap (mevcut hesap)
@@ -65,7 +66,7 @@ class _AuthScreenState extends State<AuthScreen> {
       }
       // Basariliysa AuthGate otomatik ana ekrana gecirir.
     } catch (e) {
-      setState(() => _error = e.toString());
+      setState(() => _error = friendlyError(e));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -116,7 +117,8 @@ class _AuthScreenState extends State<AuthScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Gönderilemedi: $e')));
+            .showSnackBar(
+                SnackBar(content: Text('Gönderilemedi: ${friendlyError(e)}')));
       }
     }
   }

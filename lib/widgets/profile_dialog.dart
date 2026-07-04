@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../config/app_colors.dart';
 import '../services/data_service.dart';
+import '../utils/friendly_error.dart';
 
 // Avatara veya hesap kartina basinca acilan kucuk profil penceresi.
 // Isim degistirilebilir; kaydedilince Navigator.pop(true) doner.
@@ -43,7 +44,8 @@ class _ProfileDialogState extends State<ProfileDialog> {
       if (mounted) {
         setState(() => _saving = false);
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Kaydedilemedi: $e')));
+            .showSnackBar(
+                SnackBar(content: Text('Kaydedilemedi: ${friendlyError(e)}')));
       }
     }
   }

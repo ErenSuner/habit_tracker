@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../models/metric.dart';
 import '../services/data_service.dart';
+import '../utils/friendly_error.dart';
 import '../widgets/metric_stat_cards.dart';
 
 // "Grafikler" sekmesi: ustte metrik secimi, altta secilen metriklerin
@@ -84,7 +85,8 @@ class ChartsScreenState extends State<ChartsScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Yüklenemedi: $e')));
+            .showSnackBar(
+                SnackBar(content: Text('Yüklenemedi: ${friendlyError(e)}')));
       }
     } finally {
       if (mounted) setState(() => _loading = false);

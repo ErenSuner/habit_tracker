@@ -5,6 +5,7 @@ import '../config/category_colors.dart';
 import '../config/default_metrics.dart';
 import '../models/metric.dart';
 import '../services/data_service.dart';
+import '../utils/friendly_error.dart';
 import 'metric_edit_screen.dart';
 
 // Takip kalemlerinin (metrik) listesi. Ekle / duzenle / sil / sirala.
@@ -34,7 +35,7 @@ class _MetricsScreenState extends State<MetricsScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Yüklenemedi: $e')),
+          SnackBar(content: Text('Yüklenemedi: ${friendlyError(e)}')),
         );
       }
     } finally {
@@ -83,7 +84,7 @@ class _MetricsScreenState extends State<MetricsScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Silinemedi: $e')),
+          SnackBar(content: Text('Silinemedi: ${friendlyError(e)}')),
         );
       }
     }
@@ -99,7 +100,7 @@ class _MetricsScreenState extends State<MetricsScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Eklenemedi: $e')),
+          SnackBar(content: Text('Eklenemedi: ${friendlyError(e)}')),
         );
       }
     }

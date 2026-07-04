@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/default_metrics.dart';
+import '../config/supabase_config.dart';
 import '../models/entry.dart';
 import '../models/metric.dart';
 
@@ -19,7 +20,12 @@ class DataService {
   Stream<AuthState> get authChanges => _client.auth.onAuthStateChange;
 
   Future<void> signUp(String email, String password) async {
-    await _client.auth.signUp(email: email, password: password);
+    await _client.auth.signUp(
+      email: email,
+      password: password,
+      // Dogrulama e-postasindaki baglanti uygulamaya geri donsun.
+      emailRedirectTo: SupabaseConfig.authCallbackUrl,
+    );
   }
 
   Future<void> signIn(String email, String password) async {
@@ -28,9 +34,35 @@ class DataService {
 
   Future<void> signOut() => _client.auth.signOut();
 
-  // Sifre sifirlama baglantisini e-postaya gonderir.
+  // Sifre sifirlama baglantisini e-postaya gonderir. Baglanti tiklaninca
+  // uygulama deep link ile acilir ve passwordRecovery olayi tetiklenir
+  // (main.dart'taki AuthGate bunu yakalayip yeni sifre ekranini gosterir).
   Future<void> sendPasswordReset(String email) async {
-    await _client.auth.resetPasswordForEmail(email.trim());
+    await _client.auth.resetPasswordForEmail(
+      email.trim(),
+      redirectTo: SupabaseConfig.authCallbackUrl,
+    );
+  }
+
+  // Sifre sifirlama akisinin son adimi: yeni sifreyi kaydeder.
+  Future<void> updatePassword(String newPassword) async {
+    await _client.auth.updateUser(UserAttributes(password: newPassword));
+  }
+
+  // Hesabi KALICI olarak siler (delete-account Edge Function'i service role
+  // ile auth.users satirini siler; tablolardaki veriler cascade ile gider).
+  // Basarili olursa yerel oturumu da kapatir.
+  Future<void> deleteAccount() async {
+    final res = await _client.functions.invoke('delete-account');
+    final data = res.data;
+    if (data is Map && data['error'] != null) {
+      throw Exception(data['error'].toString());
+    }
+    // Kullanici artik yok; oturumu kapat (sunucu 404 dondurse de yerel
+    // oturum temizlenir, hata onemsiz).
+    try {
+      await _client.auth.signOut();
+    } catch (_) {}
   }
 
   // Kullanicinin gosterilen adi (auth metadata'da saklanir, buluta senkron).

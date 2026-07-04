@@ -12,6 +12,15 @@ class SupabaseConfig {
   static const String supabaseUrl = 'BURAYA_PROJECT_URL';
   static const String supabaseAnonKey = 'BURAYA_ANON_KEY';
 
+  // Kimlik dogrulama e-postalarindaki baglantilarin uygulamaya donus adresi.
+  // Supabase paneli > Authentication > URL Configuration > Redirect URLs
+  // listesine AYNEN eklenmis olmali (AndroidManifest'teki sema ile ayni).
+  static const String authCallbackUrl =
+      'com.erensuner.habittracker://auth-callback';
+
+  // Sentry crash raporlama DSN'i (sentry.io). Bos ise raporlama kapali.
+  static const String sentryDsn = '';
+
   static bool get isConfigured =>
       supabaseUrl != 'BURAYA_PROJECT_URL' &&
       supabaseAnonKey != 'BURAYA_ANON_KEY';

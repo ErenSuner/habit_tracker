@@ -7,6 +7,7 @@ import '../models/entry.dart';
 import '../models/metric.dart';
 import '../services/data_service.dart';
 import '../services/score_service.dart';
+import '../utils/friendly_error.dart';
 
 // Belirli bir GUNUN metriklerini doldurup duzenledigimiz form.
 // Hem "Bugun" sekmesi hem de "Gecmis" ekrani bunu kullanir (farkli tarihle).
@@ -102,7 +103,7 @@ class DayEntryFormState extends State<DayEntryForm> {
         _recalcScore();
       }
     } catch (e) {
-      if (mounted) _snack('Yüklenemedi: $e');
+      if (mounted) _snack('Yüklenemedi: ${friendlyError(e)}');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -155,7 +156,7 @@ class DayEntryFormState extends State<DayEntryForm> {
     try {
       await _data.saveEntry(_entries[m.id]!);
     } catch (e) {
-      _snack('Kaydedilemedi: $e');
+      _snack('Kaydedilemedi: ${friendlyError(e)}');
     }
   }
 
@@ -170,7 +171,7 @@ class DayEntryFormState extends State<DayEntryForm> {
     try {
       await _data.saveEntry(_entries[m.id]!);
     } catch (e) {
-      _snack('Kaydedilemedi: $e');
+      _snack('Kaydedilemedi: ${friendlyError(e)}');
     }
   }
 
@@ -185,7 +186,7 @@ class DayEntryFormState extends State<DayEntryForm> {
     try {
       await _data.saveEntry(_entries[m.id]!);
     } catch (e) {
-      _snack('Kaydedilemedi: $e');
+      _snack('Kaydedilemedi: ${friendlyError(e)}');
     }
   }
 
@@ -201,7 +202,7 @@ class DayEntryFormState extends State<DayEntryForm> {
     try {
       await _data.addTag(_date, m.id, t);
     } catch (e) {
-      _snack('Eklenemedi: $e');
+      _snack('Eklenemedi: ${friendlyError(e)}');
     }
   }
 
@@ -212,7 +213,7 @@ class DayEntryFormState extends State<DayEntryForm> {
     try {
       await _data.removeTag(_date, m.id, tag);
     } catch (e) {
-      _snack('Silinemedi: $e');
+      _snack('Silinemedi: ${friendlyError(e)}');
     }
   }
 
