@@ -9,11 +9,12 @@ import '../models/metric.dart';
 //   - numeric (artis iyi): hedefe orana gore (0..1); hedef yoksa girildiyse 1
 //   - numeric (artis kotu): 0 en iyi (+1), hedef notr (0), hedefi astikca
 //     NEGATIF (en cok -1) -> verime ceza olarak yansir
-//   - numeric: hedef varsa orana gore (yon: up/down); hedef yoksa girildiyse 1
-//   - boolean: "Evet/yaptim" (true) ise iyiyle karsilastirilir; cevapsiz =
-//              "Hayir/yapmadim" varsayilir. Yani iyi sonuc goodValue ile
-//              belirlenir (orn. masturbasyon-yok metriginde goodValue=false:
-//              yapmadigin -> cevapsiz/false -> 1 puan, yaptigin -> true -> 0).
+//   - numeric (aralik): [alt, ust] icindeyse 1; disina ciktikca aralik
+//     genisligi basina dogrusal duser, NEGATIFE gecebilir (en az -1)
+//   - boolean: YALNIZCA acik cevap puanlanir. Evet/Hayir'dan goodValue ile
+//     eslesen 1, eslesmeyen 0. CEVAPSIZ (bos) her zaman 0 — "hic giris
+//     yapmamak" ile "Hayir demek" farkli seylerdir; yoksa hicbir sey
+//     girmeyen biri "Hayir iyi" metriklerden bedava puan alirdi.
 //   - tag:     o gun en az bir etiket varsa 1, yoksa 0
 //   - text:    (varsayilan agirlik 0 -> sayilmaz) yazildiysa 1
 class ScoreService {
@@ -44,6 +45,20 @@ class ScoreService {
         final v = entry?.numValue;
         if (v == null) return 0;
         final t = m.target;
+        if (m.targetDirection == TargetDirection.range) {
+          // Aralik: [alt, ust] icinde tam puan; disina ciktikca aralik
+          // genisligi (ust - alt) basina dogrusal duser ve negatife gecer.
+          // Ornek uyku 7-9: 6sa -> 0.5, 5sa -> 0, 11sa -> 0, 13sa -> -1.
+          final lo = m.targetMin, hi = t;
+          if (lo == null || hi == null || hi <= lo) {
+            // Aralik duzgun tanimlanmamis: girildiyse tam puan.
+            return 1;
+          }
+          if (v >= lo && v <= hi) return 1;
+          final w = hi - lo;
+          final dist = v < lo ? lo - v : v - hi;
+          return (1 - dist / w).clamp(-1.0, 1.0).toDouble();
+        }
         if (m.targetDirection == TargetDirection.up) {
           // Sayi artinca iyilesir.
           if (t == null || t == 0) return v > 0 ? 1 : 0;
@@ -61,8 +76,9 @@ class ScoreService {
           return s.clamp(-1.0, 1.0).toDouble();
         }
       case MetricType.boolean:
-        // Cevapsiz = "Hayir/yapmadim" (false) varsayilir.
-        final b = entry?.boolValue ?? false;
+        // Cevapsiz (bos) puan almaz — acik "Hayir" ile ayni sey DEGILDIR.
+        final b = entry?.boolValue;
+        if (b == null) return 0;
         return b == m.goodValue ? 1 : 0;
       case MetricType.tag:
         return (tagList != null && tagList.isNotEmpty) ? 1 : 0;

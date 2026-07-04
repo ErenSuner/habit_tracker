@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../models/metric.dart';
 import '../services/data_service.dart';
+import '../utils/friendly_error.dart';
 import '../widgets/metric_stat_cards.dart';
 
 // "Grafikler" sekmesi: ustte metrik secimi, altta secilen metriklerin
@@ -27,9 +28,6 @@ class ChartsScreenState extends State<ChartsScreen> {
   final Map<String, Map<DateTime, double>> _numericSeries = {};
   final Map<String, Map<DateTime, bool>> _boolValues = {};
   Map<String, Set<DateTime>> _tagDays = {};
-  // Kullanicinin en az bir veri girdigi gunler (boolean "Hayir iyi"
-  // metriklerin istatistigini dogru hesaplamak icin).
-  Set<DateTime> _activeDays = {};
 
   final Set<String> _selected = {_verimKey};
 
@@ -55,10 +53,8 @@ class ChartsScreenState extends State<ChartsScreen> {
 
       _numericSeries.clear();
       _boolValues.clear();
-      final activeDays = <DateTime>{};
       for (final e in entries) {
         final d = _dateOnly(e.date);
-        activeDays.add(d);
         if (e.numValue != null) {
           (_numericSeries[e.metricId] ??= {})[d] = e.numValue!;
         }
@@ -66,10 +62,6 @@ class ChartsScreenState extends State<ChartsScreen> {
           (_boolValues[e.metricId] ??= {})[d] = e.boolValue!;
         }
       }
-      for (final s in tagDays.values) {
-        activeDays.addAll(s.map(_dateOnly));
-      }
-
       if (mounted) {
         setState(() {
           _scores = {
@@ -78,13 +70,13 @@ class ChartsScreenState extends State<ChartsScreen> {
           _metrics =
               metrics.where((m) => m.type != MetricType.text).toList();
           _tagDays = tagDays;
-          _activeDays = activeDays;
         });
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Yüklenemedi: $e')));
+            .showSnackBar(
+                SnackBar(content: Text('Yüklenemedi: ${friendlyError(e)}')));
       }
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -173,7 +165,6 @@ class ChartsScreenState extends State<ChartsScreen> {
             metric: m,
             values: _boolValues[m.id] ?? {},
             numSeries: _numericSeries[m.id] ?? {},
-            activeDays: _activeDays,
             today: _today,
           ));
         case MetricType.tag:
@@ -181,6 +172,8 @@ class ChartsScreenState extends State<ChartsScreen> {
             metric: m,
             tagDays: _tagDays[m.id] ?? {},
             today: _today,
+            // Takvimde gune dokununca o gunun etiketleri gosterilir.
+            loadTags: (d) => _data.fetchTags(d, m.id),
           ));
         case MetricType.text:
           break;

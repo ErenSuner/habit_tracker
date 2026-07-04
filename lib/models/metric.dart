@@ -34,8 +34,12 @@ extension MetricTypeX on MetricType {
       };
 }
 
-// Hedef yonu: hedefe gore "cok mu iyi, az mi iyi?"
-enum TargetDirection { up, down }
+// Hedef yonu: hedefe gore "cok mu iyi, az mi iyi, yoksa aralikta mi iyi?"
+//   up    -> sayi arttikca iyi (adim, sayfa)
+//   down  -> sayi arttikca kotu (kalori, sigara)
+//   range -> belirli araliktaki deger iyi (orn. uyku 7-9 saat);
+//            aralikta target = ust sinir, targetMin = alt sinir.
+enum TargetDirection { up, down, range }
 
 class Metric {
   final String id;
@@ -43,6 +47,7 @@ class Metric {
   final MetricType type;
   final String? unit;
   final double? target;
+  final double? targetMin; // yalnizca range yonunde kullanilir (alt sinir)
   final TargetDirection targetDirection;
   final double weight;
   final bool goodValue; // boolean tipte hangi cevap "iyi" sayilir
@@ -58,6 +63,7 @@ class Metric {
     required this.type,
     this.unit,
     this.target,
+    this.targetMin,
     this.targetDirection = TargetDirection.up,
     this.weight = 1,
     this.goodValue = true,
@@ -76,9 +82,12 @@ class Metric {
       type: MetricTypeX.fromDb(json['type'] as String),
       unit: json['unit'] as String?,
       target: (json['target'] as num?)?.toDouble(),
-      targetDirection: (json['target_direction'] as String?) == 'down'
-          ? TargetDirection.down
-          : TargetDirection.up,
+      targetMin: (json['target_min'] as num?)?.toDouble(),
+      targetDirection: switch (json['target_direction'] as String?) {
+        'down' => TargetDirection.down,
+        'range' => TargetDirection.range,
+        _ => TargetDirection.up,
+      },
       weight: (json['weight'] as num?)?.toDouble() ?? 1,
       goodValue: json['good_value'] as bool? ?? true,
       boolHasValue: json['bool_has_value'] as bool? ?? false,
@@ -97,7 +106,12 @@ class Metric {
       'type': type.dbValue,
       'unit': unit,
       'target': target,
-      'target_direction': targetDirection == TargetDirection.down ? 'down' : 'up',
+      'target_min': targetMin,
+      'target_direction': switch (targetDirection) {
+        TargetDirection.down => 'down',
+        TargetDirection.range => 'range',
+        TargetDirection.up => 'up',
+      },
       'weight': weight,
       'good_value': goodValue,
       'bool_has_value': boolHasValue,
@@ -114,6 +128,7 @@ class Metric {
         type: type,
         unit: unit,
         target: target,
+        targetMin: targetMin,
         targetDirection: targetDirection,
         weight: weight,
         goodValue: goodValue,

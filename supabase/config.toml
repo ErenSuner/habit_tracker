@@ -4,3 +4,8 @@ project_id = "ryspyidfaqgqexjqfpcz"
 # cagirabilsin. Boylece anon key'i bilen biri Gemini kotasini sömüremez.
 [functions.ai-fill]
 verify_jwt = true
+
+# Hesap silme fonksiyonu: yalnizca giris yapmis kullanici cagirabilir
+# (fonksiyon icinde ayrica token'dan kimlik dogrulanir).
+[functions.delete-account]
+verify_jwt = true

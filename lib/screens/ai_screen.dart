@@ -8,6 +8,7 @@ import '../models/ai_proposal.dart';
 import '../models/metric.dart';
 import '../services/ai_service.dart';
 import '../services/data_service.dart';
+import '../utils/friendly_error.dart';
 
 // "AI" sekmesi: gununu anlat, asistan metrikleri senin icin doldursun.
 // Sen onayladiktan sonra girisler buluta kaydedilir.
@@ -239,7 +240,7 @@ class AiScreenState extends State<AiScreen> {
         setState(() {
           _messages.add(_ChatMsg(
             fromUser: false,
-            text: 'Bir hata oluştu: $e',
+            text: friendlyError(e),
             isError: true,
           ));
         });
@@ -261,7 +262,8 @@ class AiScreenState extends State<AiScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Kaydedilemedi: $e')));
+            .showSnackBar(
+                SnackBar(content: Text('Kaydedilemedi: ${friendlyError(e)}')));
       }
     } finally {
       if (mounted) setState(() => msg.applying = false);

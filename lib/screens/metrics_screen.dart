@@ -5,6 +5,7 @@ import '../config/category_colors.dart';
 import '../config/default_metrics.dart';
 import '../models/metric.dart';
 import '../services/data_service.dart';
+import '../utils/friendly_error.dart';
 import 'metric_edit_screen.dart';
 
 // Takip kalemlerinin (metrik) listesi. Ekle / duzenle / sil / sirala.
@@ -34,7 +35,7 @@ class _MetricsScreenState extends State<MetricsScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Yüklenemedi: $e')),
+          SnackBar(content: Text('Yüklenemedi: ${friendlyError(e)}')),
         );
       }
     } finally {
@@ -83,7 +84,7 @@ class _MetricsScreenState extends State<MetricsScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Silinemedi: $e')),
+          SnackBar(content: Text('Silinemedi: ${friendlyError(e)}')),
         );
       }
     }
@@ -99,7 +100,7 @@ class _MetricsScreenState extends State<MetricsScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Eklenemedi: $e')),
+          SnackBar(content: Text('Eklenemedi: ${friendlyError(e)}')),
         );
       }
     }
@@ -231,13 +232,21 @@ class _MetricsScreenState extends State<MetricsScreen> {
     if (m.category != null && m.category!.isNotEmpty) parts.add(m.category!);
     parts.add(m.type.label);
     if (m.type == MetricType.numeric && m.target != null) {
-      final dir = m.targetDirection == TargetDirection.down ? '≤' : '≥';
-      parts.add(
-          'hedef $dir ${m.target!.toInt()}${m.unit != null ? ' ${m.unit}' : ''}');
+      final unit = m.unit != null ? ' ${m.unit}' : '';
+      if (m.targetDirection == TargetDirection.range && m.targetMin != null) {
+        // Aralik hedefi: iki siniri birden goster.
+        parts.add('hedef ${_num(m.targetMin!)}–${_num(m.target!)}$unit');
+      } else {
+        final dir = m.targetDirection == TargetDirection.down ? '≤' : '≥';
+        parts.add('hedef $dir ${_num(m.target!)}$unit');
+      }
     }
     if (m.type != MetricType.text) parts.add('ağırlık ${m.weight}');
     return parts.join(' · ');
   }
+
+  String _num(double v) =>
+      v == v.roundToDouble() ? v.toInt().toString() : v.toString();
 
   IconData _iconForType(MetricType t) => switch (t) {
         MetricType.numeric => Icons.tag,

@@ -6,11 +6,14 @@ import 'package:table_calendar/table_calendar.dart';
 class MiniCalendar extends StatefulWidget {
   final Set<DateTime> markedDays;
   final Color color;
+  // Bir gune dokununca cagrilir (orn. o gunun etiketlerini gostermek icin).
+  final void Function(DateTime day)? onDayTap;
 
   const MiniCalendar({
     super.key,
     required this.markedDays,
     required this.color,
+    this.onDayTap,
   });
 
   @override
@@ -37,6 +40,7 @@ class _MiniCalendarState extends State<MiniCalendar> {
       startingDayOfWeek: StartingDayOfWeek.monday,
       rowHeight: 38,
       onPageChanged: (f) => setState(() => _focused = f),
+      onDaySelected: (selected, _) => widget.onDayTap?.call(_d(selected)),
       calendarBuilders: CalendarBuilders(
         defaultBuilder: (ctx, day, _) {
           if (widget.markedDays.contains(_d(day))) {

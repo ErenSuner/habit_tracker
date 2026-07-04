@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../models/metric.dart';
 import '../services/stats_util.dart';
@@ -202,9 +203,15 @@ class NumericStatCard extends StatefulWidget {
 class _NumericStatCardState extends State<NumericStatCard> {
   int _days = 30;
 
-  bool _meets(double v) => widget.metric.targetDirection == TargetDirection.up
-      ? v >= widget.metric.target!
-      : v <= widget.metric.target!;
+  bool _meets(double v) {
+    final m = widget.metric;
+    return switch (m.targetDirection) {
+      TargetDirection.up => v >= m.target!,
+      TargetDirection.down => v <= m.target!,
+      // Aralik: alt ve ust sinirin ikisinin de icinde kalmali.
+      TargetDirection.range => v >= m.targetMin! && v <= m.target!,
+    };
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -220,7 +227,12 @@ class _NumericStatCardState extends State<NumericStatCard> {
       ('Ortalama', '${_fmt(avg)}${unit != null ? ' $unit' : ''}'),
     ];
 
-    if (m.target != null && m.target! > 0) {
+    // Hedef tanimli mi? (aralikta iki sinir da gerekli)
+    final hasTarget = m.targetDirection == TargetDirection.range
+        ? (m.target != null && m.targetMin != null)
+        : (m.target != null && m.target! > 0);
+
+    if (hasTarget) {
       // Hedef tutma orani: secili pencere icinde.
       var winSuccess = 0;
       window.forEach((d, v) {
@@ -253,6 +265,9 @@ class _NumericStatCardState extends State<NumericStatCard> {
                   color: Colors.teal,
                   unit: unit,
                   targetLine: m.target,
+                  targetLine2: m.targetDirection == TargetDirection.range
+                      ? m.targetMin
+                      : null,
                   avgLine: values.isEmpty ? null : avg,
                 ),
         ),
@@ -271,16 +286,14 @@ class _NumericStatCardState extends State<NumericStatCard> {
 // ============================================================
 class BooleanStatCard extends StatefulWidget {
   final Metric metric;
-  final Map<DateTime, bool> values; // TUM veri ("Evet/yaptim" kayitlari)
+  final Map<DateTime, bool> values; // TUM veri (ACIK Evet/Hayir kayitlari)
   final Map<DateTime, double> numSeries; // TUM veri (boolHasValue ise)
-  final Set<DateTime> activeDays; // kullanicinin veri girdigi gunler
   final DateTime today;
   const BooleanStatCard({
     super.key,
     required this.metric,
     required this.values,
     required this.numSeries,
-    required this.activeDays,
     required this.today,
   });
 
@@ -297,25 +310,24 @@ class _BooleanStatCardState extends State<BooleanStatCard> {
     final color = Theme.of(context).colorScheme.primary;
     final from = widget.today.subtract(Duration(days: _days - 1));
 
-    // Cevapsiz = "Hayir/yapmadim" varsayilir (skor motoruyla ayni kural);
-    // yalnizca aktif gunler degerlendirilir. Boylece "Hayir iyi" metriklerin
-    // iyi gunleri (kayit birakmayan gunler) de dogru sayilir.
-    // Tum aktif gunler: takvim + streak icin.
-    final fullSuccess = <DateTime>{};
-    for (final d in widget.activeDays) {
-      if ((widget.values[d] ?? false) == m.goodValue) fullSuccess.add(d);
-    }
+    // YALNIZCA acik cevaplar degerlendirilir (skor motoruyla ayni kural):
+    // "kayit yok" ile "Hayir" farkli seylerdir. Boylece metrik eklenmeden
+    // onceki bos gunler sahte basari/seri uretmez.
+    final fullSuccess = <DateTime>{
+      for (final e in widget.values.entries)
+        if (e.value == m.goodValue) e.key,
+    };
 
-    // Pencere: basari orani icin.
-    final winDays = widget.activeDays.where((d) => !d.isBefore(from));
+    // Pencere: basari orani icin (acik cevap verilen gunler).
     var winSuccess = 0;
     var winTotal = 0;
-    for (final d in winDays) {
+    widget.values.forEach((d, v) {
+      if (d.isBefore(from)) return;
       winTotal++;
-      if ((widget.values[d] ?? false) == m.goodValue) winSuccess++;
-    }
+      if (v == m.goodValue) winSuccess++;
+    });
 
-    final goodLabel = m.goodValue ? 'Evet' : 'Hayir';
+    final goodLabel = m.goodValue ? 'Evet' : 'Hayır';
     final stats = <(String, String)>[
       ('Seri', '${StatsUtil.streak(fullSuccess, widget.today)} gün'),
       ('Başarı ($goodLabel)', '%${StatsUtil.rate(winSuccess, winTotal)}'),
@@ -372,11 +384,14 @@ class TagStatCard extends StatefulWidget {
   final Metric metric;
   final Set<DateTime> tagDays; // TUM veri
   final DateTime today;
+  // Bir gunun etiketlerini getirir; takvimde gune dokununca gosterilir.
+  final Future<List<String>> Function(DateTime day)? loadTags;
   const TagStatCard({
     super.key,
     required this.metric,
     required this.tagDays,
     required this.today,
+    this.loadTags,
   });
 
   @override
@@ -385,6 +400,53 @@ class TagStatCard extends StatefulWidget {
 
 class _TagStatCardState extends State<TagStatCard> {
   int _days = 30;
+
+  // Takvimde isaretli bir gune dokununca o gunun etiketlerini kucuk bir
+  // pencerede gosterir.
+  Future<void> _showDayTags(DateTime day) async {
+    if (widget.loadTags == null) return;
+    if (!widget.tagDays.contains(day)) return; // etiketsiz gun: sessiz gec
+    final tagsFuture = widget.loadTags!(day);
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(
+          DateFormat('d MMMM EEEE', 'tr_TR').format(day),
+          style: const TextStyle(fontSize: 17),
+        ),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: FutureBuilder<List<String>>(
+            future: tagsFuture,
+            builder: (ctx, snap) {
+              if (snap.connectionState != ConnectionState.done) {
+                return const SizedBox(
+                  height: 56,
+                  child: Center(child: CircularProgressIndicator()),
+                );
+              }
+              final tags = snap.data ?? const <String>[];
+              if (tags.isEmpty) {
+                return const Text('Bu gün için etiket bulunamadı.');
+              }
+              return Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [for (final t in tags) Chip(label: Text(t))],
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Kapat'),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -403,14 +465,18 @@ class _TagStatCardState extends State<TagStatCard> {
         ]),
         const SizedBox(height: 12),
         Text(
-          'Etiket eklenen günler işaretli:',
+          'Etiket eklenen günler işaretli · güne dokun, etiketleri gör:',
           style: TextStyle(
             color: Theme.of(context).colorScheme.onSurfaceVariant,
             fontSize: 13,
           ),
         ),
         const SizedBox(height: 4),
-        MiniCalendar(markedDays: widget.tagDays, color: color),
+        MiniCalendar(
+          markedDays: widget.tagDays,
+          color: color,
+          onDayTap: _showDayTags,
+        ),
       ],
       trailing: _RangeSelector(days: _days, onChanged: (d) => setState(() => _days = d)),
     );
