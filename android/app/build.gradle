@@ -14,7 +14,9 @@ if (keystorePropertiesFile.exists()) {
 
 android {
     namespace = "com.erensuner.habit_tracker"
-    compileSdk = flutter.compileSdkVersion
+    // sentry_flutter + androidx.core 1.18 en az SDK 36'ya derlenmeyi sart kosuyor
+    // (compileSdk yalnizca derleme; targetSdk/minSdk degismedi).
+    compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
     compileOptions {

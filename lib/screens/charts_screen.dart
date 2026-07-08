@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../models/metric.dart';
 import '../services/data_service.dart';
+import '../services/net_status.dart';
 import '../utils/friendly_error.dart';
 import '../widgets/metric_stat_cards.dart';
 
@@ -73,7 +74,8 @@ class ChartsScreenState extends State<ChartsScreen> {
         });
       }
     } catch (e) {
-      if (mounted) {
+      // Cevrimdisi hatayi bastir: ust cubuk zaten durumu bildiriyor.
+      if (mounted && NetStatus.online.value) {
         ScaffoldMessenger.of(context)
             .showSnackBar(
                 SnackBar(content: Text('Yüklenemedi: ${friendlyError(e)}')));
