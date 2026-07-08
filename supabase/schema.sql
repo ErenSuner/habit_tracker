@@ -90,6 +90,17 @@ create table if not exists public.screen_times (
   primary key (user_id, entry_date)
 );
 
+-- ----------------------------------------------------------------
+-- 6) ai_usage : AI sekmesi icin kullanici basina gunluk istek sayaci
+--    (Gemini ucretsiz kotasinin sömürulmesini onlemek icin)
+-- ----------------------------------------------------------------
+create table if not exists public.ai_usage (
+  user_id     uuid not null references auth.users(id) on delete cascade,
+  usage_date  date not null default current_date,
+  count       integer not null default 0,
+  primary key (user_id, usage_date)
+);
+
 -- Hizli sorgu icin indeksler
 create index if not exists idx_entries_user_date on public.entries(user_id, entry_date);
 create index if not exists idx_entry_tags_user_date on public.entry_tags(user_id, entry_date);
@@ -102,6 +113,37 @@ alter table public.entries       enable row level security;
 alter table public.entry_tags    enable row level security;
 alter table public.daily_scores  enable row level security;
 alter table public.screen_times  enable row level security;
+alter table public.ai_usage      enable row level security;
+
+-- ai_usage: kullanici yalnizca kendi sayacini GORUR; artirma RPC ile yapilir.
+drop policy if exists "own_select" on public.ai_usage;
+create policy "own_select" on public.ai_usage
+  for select using (auth.uid() = user_id);
+
+-- Atomik "kontrol et ve artir" (ai-fill fonksiyonu her cagride kullanir).
+create or replace function public.check_and_increment_ai_usage(p_limit int)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  new_count int;
+  uid uuid := auth.uid();
+begin
+  if uid is null then
+    return false;
+  end if;
+  insert into public.ai_usage (user_id, usage_date, count)
+  values (uid, current_date, 1)
+  on conflict (user_id, usage_date)
+  do update set count = ai_usage.count + 1
+  returning count into new_count;
+  return new_count <= p_limit;
+end;
+$$;
+revoke all on function public.check_and_increment_ai_usage(int) from public;
+grant execute on function public.check_and_increment_ai_usage(int) to authenticated;
 
 -- Her tablo icin: kullanici sadece kendi user_id'sine ait satirlara erisebilir.
 do $$

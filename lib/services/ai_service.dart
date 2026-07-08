@@ -13,17 +13,28 @@ class AiService {
   final SupabaseClient _client = Supabase.instance.client;
   final DataService _data = DataService();
 
+  // Tek mesaj ve gecmis icin ust sinirlar (sunucudaki sinirlarla ayni;
+  // gereksiz buyuk istek gondermemek icin istemcide de kirpiyoruz).
+  static const int _maxMessageChars = 2000;
+  static const int _maxHistoryTurns = 10;
+
   // Mesaji AI'ya gonderip oneri alir.
   Future<AiProposal> ask(
     String message,
     List<Metric> metrics, {
     List<Map<String, String>> history = const [],
   }) async {
+    final trimmedMessage = message.length > _maxMessageChars
+        ? message.substring(0, _maxMessageChars)
+        : message;
+    final trimmedHistory = history.length > _maxHistoryTurns
+        ? history.sublist(history.length - _maxHistoryTurns)
+        : history;
     final res = await _client.functions.invoke(
       'ai-fill',
       body: {
-        'message': message,
-        'history': history,
+        'message': trimmedMessage,
+        'history': trimmedHistory,
         'metrics': metrics
             .map((m) => {
                   'id': m.id,

@@ -7,6 +7,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'config/app_theme.dart';
 import 'config/supabase_config.dart';
+import 'services/data_service.dart';
+import 'services/net_status.dart';
 import 'services/notification_service.dart';
 import 'services/screen_time_worker.dart';
 import 'screens/auth_screen.dart';
@@ -53,6 +55,14 @@ Future<void> _bootstrap() async {
       // "anon public" anahtaridir (ikisi de ayni ise yarar).
       publishableKey: SupabaseConfig.supabaseAnonKey,
     );
+
+    // Baglanti durumunu izlemeye basla; yeniden baglaninca cevrimdisi
+    // yapilan yazmalari sunucuya gonder. Acilista da bir kez dene.
+    await NetStatus.init();
+    NetStatus.onReconnect(() => DataService().syncPending());
+    if (NetStatus.online.value) {
+      unawaited(DataService().syncPending());
+    }
   }
 
   // Ekran suresini uygulama kapaliyken de esitleyen arka plan gorevi

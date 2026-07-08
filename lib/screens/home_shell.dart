@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../config/app_colors.dart';
 import '../services/data_service.dart';
+import '../services/net_status.dart';
 import 'ai_screen.dart';
 import 'charts_screen.dart';
 import 'history_screen.dart';
@@ -86,7 +87,18 @@ class _HomeShellState extends State<HomeShell> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: IndexedStack(index: _index, children: _screens),
-      bottomNavigationBar: _buildNavBar(),
+      // Cevrimdisi cubugu (varsa) + alt gezinme cubugu birlikte, en altta.
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ValueListenableBuilder<bool>(
+            valueListenable: NetStatus.online,
+            builder: (_, online, __) =>
+                online ? const SizedBox.shrink() : const _OfflineBar(),
+          ),
+          _buildNavBar(),
+        ],
+      ),
     );
   }
 
@@ -148,6 +160,45 @@ class _HomeShellState extends State<HomeShell> {
                   color: selected
                       ? AppColors.purpleBright
                       : AppColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// Internet yokken gezinme cubugunun ustunde beliren ince bilgi seridi.
+// Girisler yerelde tutulur; baglanti gelince otomatik gonderilir.
+class _OfflineBar extends StatelessWidget {
+  const _OfflineBar();
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: const Color(0xFF3A2E1A),
+      child: SizedBox(
+        width: double.infinity,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: const [
+              Icon(Icons.cloud_off_rounded,
+                  size: 15, color: AppColors.warning),
+              SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  'Çevrimdışısın · girişlerin kaydedilip bağlantı gelince eşitlenecek',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.warning,
+                  ),
                 ),
               ),
             ],

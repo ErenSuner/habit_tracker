@@ -13,7 +13,14 @@
 // (ucretsiz katman bu kullanim icin yeterli).
 // -----------------------------------------------------------------------------
 
+import { createClient } from "npm:@supabase/supabase-js@2";
+
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+
+// Kotuye kullanima karsi sinirlar:
+const DAILY_LIMIT = 40; // kullanici basina gunluk istek (Gemini ucretsiz: 500/gun toplam)
+const MAX_MESSAGE_CHARS = 2000; // tek mesajin ust siniri
+const MAX_HISTORY_TURNS = 10; // gecmisten en fazla son N tur gonderilir
 
 // Kullanilacak model. Ucuz/hizli "flash-lite" sinifi bu gorev icin yeterli.
 // 3.1 Flash Lite secildi cunku ucretsiz katmanda en yuksek limitlere sahip
@@ -39,12 +46,39 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
-    const message: string = body.message ?? "";
+    // Girdi sinirlari: uzun mesaj/gecmis hem maliyeti hem kotayi sömürur.
+    const message: string = (body.message ?? "").slice(0, MAX_MESSAGE_CHARS);
     const metrics: MetricInfo[] = body.metrics ?? [];
-    const history: ChatTurn[] = body.history ?? [];
+    const history: ChatTurn[] = (body.history ?? []).slice(-MAX_HISTORY_TURNS);
 
     if (!message.trim()) {
       return json({ error: "Mesaj bos." }, 400);
+    }
+
+    // Gunluk kota kontrolu: cagriyi yapan kullanicinin sayacini atomik olarak
+    // artir; limiti astiysa Gemini'yi HIC cagirmadan don. Sayac tablosu/RPC
+    // henuz kurulmadiysa (migration eksik) ozelligi bloklamamak icin izin
+    // verilir (fail-open) — asil koruma tablo kurulunca devreye girer.
+    const authHeader = req.headers.get("Authorization") ?? "";
+    try {
+      const supabase = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_ANON_KEY")!,
+        { global: { headers: { Authorization: authHeader } } },
+      );
+      const { data: allowed, error: rpcError } = await supabase.rpc(
+        "check_and_increment_ai_usage",
+        { p_limit: DAILY_LIMIT },
+      );
+      if (!rpcError && allowed === false) {
+        return json({
+          error:
+            `Günlük AI kullanım sınırına ulaştın (${DAILY_LIMIT} istek). ` +
+            `Yarın tekrar deneyebilirsin.`,
+        }, 429);
+      }
+    } catch (_) {
+      // Kota kontrol edilemedi: ozelligi bloklama, devam et.
     }
 
     // Metrik listesini modele tanitan sistem komutu.
