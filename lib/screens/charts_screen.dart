@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../models/metric.dart';
 import '../services/data_service.dart';
@@ -19,7 +18,6 @@ class ChartsScreen extends StatefulWidget {
 class ChartsScreenState extends State<ChartsScreen> {
   final _data = DataService();
 
-  static const String _verimKey = '__verim__';
   static const int _maxDays = 90; // her zaman son 90 gunu cek; kartlar suzer
 
   bool _loading = true;
@@ -29,8 +27,7 @@ class ChartsScreenState extends State<ChartsScreen> {
   final Map<String, Map<DateTime, double>> _numericSeries = {};
   final Map<String, Map<DateTime, bool>> _boolValues = {};
   Map<String, Set<DateTime>> _tagDays = {};
-
-  final Set<String> _selected = {_verimKey};
+  Map<DateTime, int> _screenTimes = {};
 
   static DateTime _dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
   DateTime get _today => _dateOnly(DateTime.now());
@@ -51,6 +48,7 @@ class ChartsScreenState extends State<ChartsScreen> {
       final metrics = await _data.fetchMetrics(onlyActive: true);
       final entries = await _data.fetchEntriesRange(_from, _today);
       final tagDays = await _data.fetchTagDays(_from, _today);
+      final screenTimes = await _data.fetchScreenTimes(_from, _today);
 
       _numericSeries.clear();
       _boolValues.clear();
@@ -71,6 +69,9 @@ class ChartsScreenState extends State<ChartsScreen> {
           _metrics =
               metrics.where((m) => m.type != MetricType.text).toList();
           _tagDays = tagDays;
+          _screenTimes = {
+            for (final e in screenTimes.entries) _dateOnly(e.key): e.value,
+          };
         });
       }
     } catch (e) {
@@ -95,66 +96,21 @@ class ChartsScreenState extends State<ChartsScreen> {
               onRefresh: _load,
               child: ListView(
                 padding: const EdgeInsets.all(16),
-                children: [
-                  _selector(),
-                  const SizedBox(height: 16),
-                  ..._selectedCards(),
-                ],
+                children: _allCards(),
               ),
             ),
     );
   }
 
-  Widget _selector() {
-    final chips = <Widget>[
-      FilterChip(
-        label: const Text('Genel verim'),
-        selected: _selected.contains(_verimKey),
-        onSelected: (s) {
-          HapticFeedback.selectionClick();
-          setState(() {
-            s ? _selected.add(_verimKey) : _selected.remove(_verimKey);
-          });
-        },
-      ),
-      ..._metrics.map((m) => FilterChip(
-            label: Text(m.name),
-            selected: _selected.contains(m.id),
-            onSelected: (s) {
-              HapticFeedback.selectionClick();
-              setState(() {
-                s ? _selected.add(m.id) : _selected.remove(m.id);
-              });
-            },
-          )),
+  // Tum grafikler her zaman gosterilir (secim yok). Ekran suresi en ustte,
+  // sonra genel verim, sonra her metrigin karti.
+  List<Widget> _allCards() {
+    final cards = <Widget>[
+      ScreenTimeChartCard(minutes: _screenTimes, today: _today),
+      VerimStatCard(scores: _scores, today: _today),
     ];
-    return Wrap(spacing: 8, runSpacing: 4, children: chips);
-  }
-
-  List<Widget> _selectedCards() {
-    if (_selected.isEmpty) {
-      return [
-        Padding(
-          padding: const EdgeInsets.only(top: 32),
-          child: Center(
-            child: Text(
-              'İstatistiğini görmek istediğin metrikleri yukarıdan seç.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant),
-            ),
-          ),
-        ),
-      ];
-    }
-
-    final cards = <Widget>[];
-    if (_selected.contains(_verimKey)) {
-      cards.add(VerimStatCard(scores: _scores, today: _today));
-    }
 
     for (final m in _metrics) {
-      if (!_selected.contains(m.id)) continue;
       switch (m.type) {
         case MetricType.numeric:
           cards.add(NumericStatCard(

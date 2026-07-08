@@ -17,7 +17,8 @@ android {
     // sentry_flutter + androidx.core 1.18 en az SDK 36'ya derlenmeyi sart kosuyor
     // (compileSdk yalnizca derleme; targetSdk/minSdk degismedi).
     compileSdk = 36
-    ndkVersion = flutter.ndkVersion
+    // Eklentilerin (sentry_flutter, connectivity_plus vb.) istedigi NDK.
+    ndkVersion = "27.0.12077973"
 
     compileOptions {
         // flutter_local_notifications icin gerekli: eski Android surumlerinde
