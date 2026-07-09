@@ -9,7 +9,6 @@ import '../services/data_service.dart';
 import '../services/stats_util.dart';
 import '../widgets/day_entry_form.dart';
 import '../widgets/profile_dialog.dart';
-import '../widgets/screen_time_card.dart';
 
 // "Ana sayfa": ustte pano (verim halkasi, streak'ler, gun ozeti, mini trend),
 // altinda bugunun giris kartlari (DayEntryForm).
@@ -23,7 +22,6 @@ class HomeScreen extends StatefulWidget {
 class HomeScreenState extends State<HomeScreen> {
   final _data = DataService();
   final _formKey = GlobalKey<DayEntryFormState>();
-  final _screenTimeKey = GlobalKey<ScreenTimeCardState>();
 
   final DateTime _today = DateTime(
     DateTime.now().year,
@@ -53,7 +51,6 @@ class HomeScreenState extends State<HomeScreen> {
 
   void reload() {
     _formKey.currentState?.reload();
-    _screenTimeKey.currentState?.reload();
     _loadDashboard();
   }
 
@@ -266,8 +263,6 @@ class HomeScreenState extends State<HomeScreen> {
         _heroCard(),
         const SizedBox(height: 14),
         _statTiles(),
-        const SizedBox(height: 14),
-        ScreenTimeCard(key: _screenTimeKey),
         const SizedBox(height: 28),
         Padding(
           padding: const EdgeInsets.only(left: 4, bottom: 4),

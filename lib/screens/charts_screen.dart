@@ -27,7 +27,6 @@ class ChartsScreenState extends State<ChartsScreen> {
   final Map<String, Map<DateTime, double>> _numericSeries = {};
   final Map<String, Map<DateTime, bool>> _boolValues = {};
   Map<String, Set<DateTime>> _tagDays = {};
-  Map<DateTime, int> _screenTimes = {};
 
   static DateTime _dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
   DateTime get _today => _dateOnly(DateTime.now());
@@ -48,7 +47,6 @@ class ChartsScreenState extends State<ChartsScreen> {
       final metrics = await _data.fetchMetrics(onlyActive: true);
       final entries = await _data.fetchEntriesRange(_from, _today);
       final tagDays = await _data.fetchTagDays(_from, _today);
-      final screenTimes = await _data.fetchScreenTimes(_from, _today);
 
       _numericSeries.clear();
       _boolValues.clear();
@@ -69,9 +67,6 @@ class ChartsScreenState extends State<ChartsScreen> {
           _metrics =
               metrics.where((m) => m.type != MetricType.text).toList();
           _tagDays = tagDays;
-          _screenTimes = {
-            for (final e in screenTimes.entries) _dateOnly(e.key): e.value,
-          };
         });
       }
     } catch (e) {
@@ -102,11 +97,10 @@ class ChartsScreenState extends State<ChartsScreen> {
     );
   }
 
-  // Tum grafikler her zaman gosterilir (secim yok). Ekran suresi en ustte,
-  // sonra genel verim, sonra her metrigin karti.
+  // Genel verim grafigi en ustte sabit; sonra her alışkanlığın karti
+  // (katlanir, secim yok).
   List<Widget> _allCards() {
     final cards = <Widget>[
-      ScreenTimeChartCard(minutes: _screenTimes, today: _today),
       VerimStatCard(scores: _scores, today: _today),
     ];
 
