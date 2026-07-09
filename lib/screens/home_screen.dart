@@ -284,77 +284,53 @@ class HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // Üstteki büyük kart: solda verim halkası, sağda özet + seri rozeti.
+  // Üstteki büyük kart (imza): gün doğumu turuncu gradyan, beyaz halka + metin.
   Widget _heroCard() {
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        // Yumuşak mor ışıltı (kartın arkasında)
-        Positioned(
-          top: 6,
-          left: 40,
-          right: 40,
-          child: IgnorePointer(
-            child: Container(
-              height: 120,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(80),
-                gradient: RadialGradient(
-                  colors: [
-                    AppColors.purple.withValues(alpha: 0.32),
-                    Colors.transparent,
-                  ],
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: AppColors.gradient,
+        borderRadius: BorderRadius.circular(26),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.accent.withValues(alpha: 0.35),
+            blurRadius: 24,
+            offset: const Offset(0, 12),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          _ring(),
+          const SizedBox(width: 20),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Harika gidiyorsun',
+                    style: TextStyle(
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white.withValues(alpha: 0.85))),
+                const SizedBox(height: 4),
+                Text(
+                  _total == 0 ? 'Henüz alışkanlık yok' : '$_filled / $_total alışkanlık',
+                  style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                      letterSpacing: -0.3),
                 ),
-              ),
+                if (_streaks.isNotEmpty) ...[
+                  const SizedBox(height: 14),
+                  _streakBadge(_streaks.first),
+                ],
+              ],
             ),
           ),
-        ),
-        Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF1B1430), Color(0xFF15121E)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: const Color(0xFF2E2740)),
-          ),
-          child: Row(
-            children: [
-              _ring(),
-              const SizedBox(width: 20),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text('Harika gidiyorsun',
-                        style: TextStyle(
-                            fontSize: 14.5,
-                            fontWeight: FontWeight.w500,
-                            color: AppColors.textSecondary)),
-                    const SizedBox(height: 4),
-                    Text(
-                      _total == 0
-                          ? 'Henüz metrik yok'
-                          : '$_filled / $_total alışkanlık',
-                      style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: -0.3),
-                    ),
-                    if (_streaks.isNotEmpty) ...[
-                      const SizedBox(height: 14),
-                      _streakBadge(_streaks.first),
-                    ],
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -362,19 +338,20 @@ class HomeScreenState extends State<HomeScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        color: Colors.white.withValues(alpha: 0.22),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           const Icon(Icons.local_fire_department,
-              size: 16, color: AppColors.warning),
+              size: 16, color: Colors.white),
           const SizedBox(width: 6),
           Text('${s.days} günlük seri',
-              style:
-                  const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+              style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white)),
         ],
       ),
     );
@@ -425,7 +402,7 @@ class HomeScreenState extends State<HomeScreen> {
           decoration: BoxDecoration(
             color: AppColors.surface,
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: const Color(0xFF272231)),
+            border: Border.all(color: AppColors.border),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -499,12 +476,14 @@ class HomeScreenState extends State<HomeScreen> {
                       style: const TextStyle(
                           fontSize: 26,
                           fontWeight: FontWeight.w800,
+                          color: Colors.white,
                           letterSpacing: -1,
                           height: 1.0)),
                   const SizedBox(height: 2),
-                  const Text('bugün',
+                  Text('bugün',
                       style: TextStyle(
-                          fontSize: 11, color: AppColors.textSecondary)),
+                          fontSize: 11,
+                          color: Colors.white.withValues(alpha: 0.85))),
                 ],
               ),
             ],
@@ -533,29 +512,17 @@ class _RingPainter extends CustomPainter {
     final radius = (size.width - stroke) / 2;
     final rect = Rect.fromCircle(center: center, radius: radius);
 
+    // Turuncu gradyan uzerinde: iz saydam beyaz, dolgu duz beyaz.
     final track = Paint()
-      ..color = AppColors.surfaceHigh
+      ..color = Colors.white.withValues(alpha: 0.28)
       ..style = PaintingStyle.stroke
       ..strokeWidth = stroke
       ..strokeCap = StrokeCap.round;
     canvas.drawArc(rect, 0, 2 * math.pi, false, track);
 
     if (value <= 0) return;
-    // Son renk = ilk renk: boylece halkanin baslangic/bitis birlesiminde
-    // (yuvarlak ucun tastigi yerde) renk kopuklugu/pembe leke olmaz.
-    final shader = const SweepGradient(
-      colors: [
-        Color(0xFF6366F1),
-        Color(0xFFA855F7),
-        Color(0xFFB39DFF),
-        Color(0xFF6366F1),
-      ],
-      startAngle: 0,
-      endAngle: 2 * math.pi,
-      transform: GradientRotation(-math.pi / 2),
-    ).createShader(rect);
     final arc = Paint()
-      ..shader = shader
+      ..color = Colors.white
       ..style = PaintingStyle.stroke
       ..strokeWidth = stroke
       ..strokeCap = StrokeCap.round;

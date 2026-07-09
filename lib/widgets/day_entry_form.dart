@@ -294,11 +294,11 @@ class DayEntryFormState extends State<DayEntryForm> {
           children: [
             const Icon(Icons.inbox_outlined, size: 56),
             const SizedBox(height: 16),
-            Text('Henüz metrik yok',
+            Text('Henüz alışkanlık yok',
                 style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 8),
             const Text(
-              'Önce Ayarlar > Metrikleri yönet kısmından takip etmek '
+              'Önce Ayarlar > Alışkanlıkları yönet kısmından takip etmek '
               'istediğin kalemleri ekle.',
               textAlign: TextAlign.center,
             ),
@@ -341,7 +341,7 @@ class DayEntryFormState extends State<DayEntryForm> {
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: highlight ? const Color(0xFF3A2E55) : AppColors.border,
+            color: highlight ? AppColors.accent : AppColors.border,
           ),
         ),
         child: Row(
@@ -399,18 +399,11 @@ class DayEntryFormState extends State<DayEntryForm> {
       alignment: Alignment.center,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(14),
-        gradient: filled
-            ? const LinearGradient(
-                colors: [Color(0x337C3AED), Color(0x336366F1)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              )
-            : null,
-        color: filled ? null : Colors.white.withValues(alpha: 0.04),
+        color: filled ? AppColors.accentSoft : AppColors.surfaceHigh,
         border: Border.all(
           color: filled
-              ? AppColors.purple.withValues(alpha: 0.27)
-              : Colors.white.withValues(alpha: 0.07),
+              ? AppColors.accent.withValues(alpha: 0.30)
+              : AppColors.border,
         ),
       ),
       child: Icon(
@@ -474,7 +467,7 @@ class DayEntryFormState extends State<DayEntryForm> {
         gradient: on ? gradient : null,
         color: (on && gradient == null) ? activeColor : null,
         border:
-            on ? null : Border.all(color: const Color(0xFF3A3450), width: 2),
+            on ? null : Border.all(color: AppColors.border, width: 2),
       ),
       child: on ? Icon(icon, size: 16, color: Colors.white) : null,
     );
