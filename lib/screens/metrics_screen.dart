@@ -60,9 +60,9 @@ class _MetricsScreenState extends State<MetricsScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Metriği sil'),
+        title: const Text('Alışkanlığı sil'),
         content: Text(
-          '"${m.name}" silinsin mi? Bu metriğe ait tüm günlük kayıtlar da '
+          '"${m.name}" silinsin mi? Bu alışkanlığa ait tüm günlük kayıtlar da '
           'silinir. Bu işlem geri alınamaz.',
         ),
         actions: [
@@ -109,11 +109,11 @@ class _MetricsScreenState extends State<MetricsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Metrikleri yönet')),
+      appBar: AppBar(title: const Text('Alışkanlıklar')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openEditor(),
         icon: const Icon(Icons.add),
-        label: const Text('Metrik ekle'),
+        label: const Text('Alışkanlık ekle'),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -281,7 +281,7 @@ class _EmptyState extends StatelessWidget {
             ),
             const SizedBox(height: 18),
             Text(
-              'Henüz metrik yok',
+              'Henüz alışkanlık yok',
               style: Theme.of(context)
                   .textTheme
                   .titleLarge
@@ -298,7 +298,7 @@ class _EmptyState extends StatelessWidget {
             FilledButton.icon(
               onPressed: onSeed,
               icon: const Icon(Icons.auto_fix_high),
-              label: const Text('Örnek metrikleri ekle'),
+              label: const Text('Örnek alışkanlıkları ekle'),
             ),
             const SizedBox(height: 8),
             OutlinedButton.icon(

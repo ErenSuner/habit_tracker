@@ -34,7 +34,7 @@ class ProposedEntry {
 
   // Kullaniciya gosterilecek ozet (orn. "Spor yaptim: Evet").
   String summary() {
-    final name = metricName ?? 'Metrik';
+    final name = metricName ?? 'Alışkanlık';
     switch (type) {
       case MetricType.numeric:
         return '$name: ${numValue ?? '-'}';

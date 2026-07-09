@@ -120,8 +120,8 @@ class _MetricEditScreenState extends State<MetricEditScreen> {
       builder: (ctx) => AlertDialog(
         title: const Text('Kategoriyi sil'),
         content: Text(
-          '"$cat" kategorisi tüm metriklerden kaldırılsın mı? '
-          'Metrikler silinmez, yalnızca kategorisiz kalır.',
+          '"$cat" kategorisi tüm alışkanlıklardan kaldırılsın mı? '
+          'Alışkanlıklar silinmez, yalnızca kategorisiz kalır.',
         ),
         actions: [
           TextButton(
@@ -218,7 +218,7 @@ class _MetricEditScreenState extends State<MetricEditScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(_isEditing ? 'Metriği düzenle' : 'Yeni metrik'),
+        title: Text(_isEditing ? 'Alışkanlığı düzenle' : 'Yeni alışkanlık'),
       ),
       body: SafeArea(
         child: Column(

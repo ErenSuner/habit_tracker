@@ -317,7 +317,7 @@ class AiScreenState extends State<AiScreen> {
             const Padding(
               padding: EdgeInsets.all(12),
               child: Text(
-                'Önce Ayarlar > Metrikleri yönet kısmından metrik ekle, '
+                'Önce Ayarlar > Alışkanlıkları yönet kısmından alışkanlık ekle, '
                 'sonra gününü anlat.',
                 textAlign: TextAlign.center,
               ),
@@ -384,7 +384,7 @@ class AiScreenState extends State<AiScreen> {
                     ?.copyWith(fontWeight: FontWeight.w700)),
             const SizedBox(height: 8),
             const Text(
-              'Ne yaptığını yaz ya da mikrofonla söyle; asistan metriklerini '
+              'Ne yaptığını yaz ya da mikrofonla söyle; asistan alışkanlıklarını '
               'senin için doldursun.',
               textAlign: TextAlign.center,
               style: TextStyle(color: AppColors.textSecondary, height: 1.35),

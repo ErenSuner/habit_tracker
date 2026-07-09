@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../config/app_colors.dart';
 import '../models/metric.dart';
 import '../services/stats_util.dart';
 import 'mini_calendar.dart';
+import 'simple_bar_chart.dart';
 import 'simple_line_chart.dart';
 
 // ---- ortak yardimcilar ----
@@ -96,36 +98,114 @@ class _RangeSelector extends StatelessWidget {
   }
 }
 
+// Grafik karti. collapsible=true ise varsayilan KAPALI gelir: baslik +
+// ozet istatistik gorunur, dokununca grafik acilir. Boylece Grafikler
+// sekmesi az kaydirilir. collapsible=false kartlar hep aciktir.
 Widget _cardShell(
   BuildContext c,
   String title,
   List<Widget> children, {
   Widget? trailing,
-}) {
-  return Card(
-    margin: const EdgeInsets.only(bottom: 16),
-    child: Padding(
-      padding: const EdgeInsets.fromLTRB(12, 14, 12, 14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(left: 4, bottom: 12),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(title,
-                      style: Theme.of(c).textTheme.titleMedium),
-                ),
-                if (trailing != null) trailing,
-              ],
+  bool collapsible = false,
+  String? summary,
+  IconData? icon,
+}) =>
+    _ChartCard(
+      title: title,
+      trailing: trailing,
+      collapsible: collapsible,
+      summary: summary,
+      icon: icon,
+      children: children,
+    );
+
+class _ChartCard extends StatefulWidget {
+  final String title;
+  final Widget? trailing;
+  final bool collapsible;
+  final String? summary;
+  final IconData? icon;
+  final List<Widget> children;
+  const _ChartCard({
+    required this.title,
+    required this.children,
+    this.trailing,
+    this.collapsible = false,
+    this.summary,
+    this.icon,
+  });
+
+  @override
+  State<_ChartCard> createState() => _ChartCardState();
+}
+
+class _ChartCardState extends State<_ChartCard> {
+  bool _open = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final expanded = !widget.collapsible || _open;
+    return Card(
+      margin: const EdgeInsets.only(bottom: 14),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            InkWell(
+              onTap: widget.collapsible
+                  ? () => setState(() => _open = !_open)
+                  : null,
+              borderRadius: BorderRadius.circular(10),
+              child: Row(
+                children: [
+                  if (widget.icon != null) ...[
+                    Icon(widget.icon, size: 18, color: cs.primary),
+                    const SizedBox(width: 8),
+                  ],
+                  Expanded(
+                    child: Text(widget.title,
+                        style: Theme.of(context)
+                            .textTheme
+                            .titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w700)),
+                  ),
+                  if (expanded && widget.trailing != null)
+                    widget.trailing!
+                  else if (widget.collapsible) ...[
+                    if (widget.summary != null)
+                      Text(widget.summary!,
+                          style: TextStyle(
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w700,
+                              color: cs.primary)),
+                    const SizedBox(width: 4),
+                    Icon(_open ? Icons.expand_less : Icons.expand_more,
+                        color: cs.onSurfaceVariant),
+                  ],
+                ],
+              ),
             ),
-          ),
-          ...children,
-        ],
+            AnimatedCrossFade(
+              duration: const Duration(milliseconds: 220),
+              crossFadeState: expanded
+                  ? CrossFadeState.showFirst
+                  : CrossFadeState.showSecond,
+              firstChild: Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: widget.children,
+                ),
+              ),
+              secondChild: const SizedBox(width: double.infinity),
+            ),
+          ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 // ============================================================
@@ -155,6 +235,7 @@ class _VerimStatCardState extends State<VerimStatCard> {
     return _cardShell(
       context,
       'Genel verim',
+      icon: Icons.local_fire_department,
       [
         _statsRow(context, [
           ('Ortalama', '%${avg.round()}'),
@@ -217,6 +298,7 @@ class _ScreenTimeChartCardState extends State<ScreenTimeChartCard> {
     return _cardShell(
       context,
       'Ekran süresi',
+      icon: Icons.smartphone,
       [
         _statsRow(context, [
           ('Ortalama', '${_fmt(avg)} sa'),
@@ -228,12 +310,12 @@ class _ScreenTimeChartCardState extends State<ScreenTimeChartCard> {
           height: 190,
           child: window.isEmpty
               ? _empty(context)
-              : SimpleLineChart(
+              : SimpleBarChart(
                   data: window,
                   from: from,
                   days: _days,
                   maxY: _niceMax(values, null),
-                  color: Colors.orangeAccent,
+                  color: AppColors.accent,
                   unit: 'sa',
                   avgLine: avg,
                 ),
@@ -313,6 +395,11 @@ class _NumericStatCardState extends State<NumericStatCard> {
     return _cardShell(
       context,
       _title(),
+      icon: Icons.bar_chart_rounded,
+      collapsible: true,
+      summary: values.isEmpty
+          ? '—'
+          : '${_fmt(avg)}${unit != null ? ' $unit' : ''}',
       [
         _statsRow(context, stats),
         const SizedBox(height: 16),
@@ -320,12 +407,12 @@ class _NumericStatCardState extends State<NumericStatCard> {
           height: 190,
           child: window.isEmpty
               ? _empty(context)
-              : SimpleLineChart(
+              : SimpleBarChart(
                   data: window,
                   from: from,
                   days: _days,
                   maxY: _niceMax(values, m.target),
-                  color: Colors.teal,
+                  color: AppColors.accent,
                   unit: unit,
                   targetLine: m.target,
                   targetLine2: m.targetDirection == TargetDirection.range
@@ -407,6 +494,9 @@ class _BooleanStatCardState extends State<BooleanStatCard> {
     return _cardShell(
       context,
       m.name,
+      icon: m.goodValue ? Icons.check_circle_outline : Icons.block,
+      collapsible: true,
+      summary: '${StatsUtil.streak(fullSuccess, widget.today)} gün seri',
       [
         _statsRow(context, stats),
         const SizedBox(height: 12),
@@ -423,12 +513,12 @@ class _BooleanStatCardState extends State<BooleanStatCard> {
           const SizedBox(height: 8),
           SizedBox(
             height: 170,
-            child: SimpleLineChart(
+            child: SimpleBarChart(
               data: numWindow,
               from: from,
               days: _days,
               maxY: _niceMax(numWindow.values, m.target),
-              color: Colors.teal,
+              color: AppColors.accent,
               unit: m.unit,
               targetLine: m.target,
             ),
@@ -521,6 +611,9 @@ class _TagStatCardState extends State<TagStatCard> {
     return _cardShell(
       context,
       widget.metric.name,
+      icon: Icons.sell_outlined,
+      collapsible: true,
+      summary: '${StatsUtil.streak(widget.tagDays, widget.today)} gün seri',
       [
         _statsRow(context, [
           ('Seri', '${StatsUtil.streak(widget.tagDays, widget.today)} gün'),

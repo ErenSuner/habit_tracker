@@ -70,16 +70,16 @@ flutter_launcher_icons:
   android: true
   ios: false
   image_path: "assets/icon/icon.png"
-  adaptive_icon_background: "#6D28D9"
+  adaptive_icon_background: "#FF6B2C"
   adaptive_icon_foreground: "assets/icon/icon_foreground.png"
   min_sdk_android: 23
 
 # Acilis ekrani (dart run flutter_native_splash:create ile uretilir)
 flutter_native_splash:
-  color: "#0B0910"
+  color: "#FFF7F0"
   image: assets/icon/icon_foreground.png
   android_12:
-    color: "#0B0910"
+    color: "#FFF7F0"
     image: assets/icon/icon_foreground.png
 
 # For information on the generic Dart part of this file, see the

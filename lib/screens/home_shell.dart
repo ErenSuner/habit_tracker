@@ -178,7 +178,7 @@ class _OfflineBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: const Color(0xFF3A2E1A),
+      color: const Color(0xFFFFF3E0),
       child: SizedBox(
         width: double.infinity,
         child: Padding(
@@ -187,7 +187,7 @@ class _OfflineBar extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: const [
               Icon(Icons.cloud_off_rounded,
-                  size: 15, color: AppColors.warning),
+                  size: 15, color: Color(0xFFB45309)),
               SizedBox(width: 8),
               Flexible(
                 child: Text(
@@ -197,7 +197,7 @@ class _OfflineBar extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 11.5,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.warning,
+                    color: Color(0xFFB45309),
                   ),
                 ),
               ),

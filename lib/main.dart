@@ -78,8 +78,8 @@ class HabitTrackerApp extends StatelessWidget {
     return MaterialApp(
       title: 'Habit Tracker',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.dark(),
-      themeMode: ThemeMode.dark,
+      theme: AppTheme.light(),
+      themeMode: ThemeMode.light,
       home: SupabaseConfig.isConfigured
           ? const AuthGate()
           : const SetupNeededScreen(),

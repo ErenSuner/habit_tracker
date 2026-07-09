@@ -206,8 +206,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _card([
             _tile(
               icon: Icons.tune,
-              title: 'Metrikleri yönet',
-              subtitle: 'Takip kalemlerini ekle / düzenle',
+              title: 'Alışkanlıkları yönet',
+              subtitle: 'Takip ettiklerini ekle / düzenle',
               trailing: const Icon(Icons.chevron_right,
                   color: AppColors.textSecondary),
               onTap: () => Navigator.push(
