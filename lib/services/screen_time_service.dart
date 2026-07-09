@@ -12,10 +12,6 @@ import 'package:usage_stats/usage_stats.dart';
 // okunan degerler her acilista Supabase'e (screen_times tablosu) yazilir;
 // 7/30/60 gunluk ortalamalar oradan hesaplanir.
 class ScreenTimeService {
-  // UsageEvents.Event sabitleri (int degerlerin metin hali).
-  static const _screenOn = '15'; // SCREEN_INTERACTIVE
-  static const _screenOff = '16'; // SCREEN_NON_INTERACTIVE
-
   static Future<bool> hasPermission() async {
     if (!Platform.isAndroid) return false;
     try {
@@ -34,11 +30,12 @@ class ScreenTimeService {
 
   // Bir gunun toplam ekran suresi (dakika). Okunamazsa null.
   //
-  // Yontem: ekranin acik/kapali oldugu anlar (SCREEN_INTERACTIVE /
-  // SCREEN_NON_INTERACTIVE olaylari) eslestirilerek acik gecen sure
-  // toplanir. Bu, "Dijital Denge"nin gosterdigi ekran suresine en yakin
-  // olcumdur. Bu olaylari vermeyen cihazlarda uygulama bazli on plan
-  // surelerinin toplamina dusulur (yaklasik deger).
+  // Yontem: uygulamalarin ON PLANA gelme/gitme olaylari (RESUMED/PAUSED)
+  // eslestirilir ve "en az bir uygulama on planda" gecen surenin BIRLESIMI
+  // alinir. Bu, telefonun "Dijital Denge / Ekran Suresi" degerine en yakin
+  // olcumdur (ekran-acik anlarini saymak Samsung gibi cihazlarda eksik/
+  // yanlis cikiyordu). Olay yoksa uygulama on plan surelerinin toplamina
+  // dusulur.
   static Future<int?> minutesForDay(DateTime day) async {
     if (!Platform.isAndroid) return null;
 
@@ -48,6 +45,9 @@ class ScreenTimeService {
     if (end.isAfter(now)) end = now;
     if (!end.isAfter(start)) return null;
 
+    final startMs = start.millisecondsSinceEpoch;
+    final endMs = end.millisecondsSinceEpoch;
+
     List<EventUsageInfo> events;
     try {
       events = await UsageStats.queryEvents(start, end);
@@ -55,38 +55,46 @@ class ScreenTimeService {
       return null;
     }
 
+    // Olaylari zamana gore sirala (eklenti sirali dondurmeyebilir).
+    final sorted = [
+      for (final e in events)
+        if (int.tryParse(e.timeStamp ?? '') != null) e,
+    ]..sort((a, b) =>
+        int.parse(a.timeStamp!).compareTo(int.parse(b.timeStamp!)));
+
     var totalMs = 0;
-    int? onSince; // ekranin acildigi an (epoch ms)
-    var sawScreenEvents = false;
-    var isFirstScreenEvent = true;
+    var sawForeground = false;
+    final fg = <String>{}; // su an on planda olan paketler
+    int? activeSince; // en az bir uygulamanin on planda oldugu anin baslangici
 
-    for (final e in events) {
-      final type = e.eventType;
-      if (type != _screenOn && type != _screenOff) continue;
-      final ts = int.tryParse(e.timeStamp ?? '');
-      if (ts == null) continue;
-      sawScreenEvents = true;
+    for (final e in sorted) {
+      final type = e.eventType ?? '';
+      final ts = int.parse(e.timeStamp!);
+      final pkg = e.packageName ?? '?';
+      final resumed = type == '1' || type.contains('RESUME');
+      final paused = type == '2' || type.contains('PAUSE') ||
+          type.contains('STOP');
+      if (!resumed && !paused) continue;
+      sawForeground = true;
 
-      if (type == _screenOn) {
-        onSince ??= ts;
+      if (resumed) {
+        if (fg.isEmpty) activeSince = ts;
+        fg.add(pkg);
       } else {
-        if (onSince != null) {
-          totalMs += ts - onSince;
-          onSince = null;
-        } else if (isFirstScreenEvent) {
-          // Gun, ekran acikken baslamis: gun basindan ilk kapanisa kadar say.
-          totalMs += ts - start.millisecondsSinceEpoch;
+        fg.remove(pkg);
+        if (fg.isEmpty && activeSince != null) {
+          totalMs += ts - activeSince;
+          activeSince = null;
         }
       }
-      isFirstScreenEvent = false;
     }
-    // Su an hala acik (bugunun devam eden kullanimi).
-    if (onSince != null) {
-      totalMs += end.millisecondsSinceEpoch - onSince;
+    // Gun sonunda hala on planda (bugunun devam eden kullanimi).
+    if (fg.isNotEmpty && activeSince != null) {
+      totalMs += endMs - activeSince;
     }
 
-    // Yedek yontem: ekran olaylari yoksa uygulama on plan surelerini topla.
-    if (!sawScreenEvents) {
+    // Yedek: on plan olayi yoksa uygulama on plan surelerinin toplamini kullan.
+    if (!sawForeground) {
       try {
         final infos = await UsageStats.queryUsageStats(start, end);
         var ms = 0;
@@ -100,8 +108,9 @@ class ScreenTimeService {
     }
 
     // Gunden uzun olamaz (cifte sayim korumasi).
-    final maxMs = end.difference(start).inMilliseconds;
+    final maxMs = endMs - startMs;
     if (totalMs > maxMs) totalMs = maxMs;
+    if (totalMs < 0) totalMs = 0;
     return (totalMs / 60000).round();
   }
 }
