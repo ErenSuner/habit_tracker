@@ -72,22 +72,26 @@ class ScreenTimeCardState extends State<ScreenTimeCard>
     });
   }
 
-  // Son [days] gunun ortalamasi (verisi olan gunler uzerinden).
-  // O pencerede hic veri yoksa null doner; kartta "-" gosterilir.
+  // Son [days] gunun ortalamasi (yalnizca gercek veri > 0 olan gunler).
+  // O pencerede veri yoksa null doner; kartta "-" gosterilir.
   int? _avg(int days) {
     final from = _today.subtract(Duration(days: days - 1));
     final vals = [
       for (final e in _history.entries)
-        if (!_dateOnly(e.key).isBefore(from)) e.value,
+        if (!_dateOnly(e.key).isBefore(from) && e.value > 0) e.value,
     ];
     if (vals.isEmpty) return null;
     return (vals.reduce((a, b) => a + b) / vals.length).round();
   }
 
-  // Genel ortalama: kayitli TUM gunler uzerinden.
+  // Genel ortalama: kayitli TUM gunler (veri > 0) uzerinden.
   int? _avgAll() {
-    if (_history.isEmpty) return null;
-    return (_history.values.reduce((a, b) => a + b) / _history.length).round();
+    final vals = [
+      for (final v in _history.values)
+        if (v > 0) v,
+    ];
+    if (vals.isEmpty) return null;
+    return (vals.reduce((a, b) => a + b) / vals.length).round();
   }
 
   static String _fmtDur(int min) {
