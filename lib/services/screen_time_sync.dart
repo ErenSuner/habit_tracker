@@ -12,9 +12,14 @@ class ScreenTimeSync {
   //
   // Donus: (kayitli TUM gecmis, bugunun dakikasi). Ekran suresi
   // okunamazsa bugunun dakikasi null olur.
+  // Son [refreshDays] gun HER cagrida yeniden okunur (bugun degisir, eski
+  // hatali degerler duzelsin). [lookbackDays]'e kadar olan daha eski gunler
+  // yalnizca buluta kaydi yoksa doldurulur (Android gunluk ozeti haftalar
+  // geriye gidebilir; olay gecmisi ~1 haftadir, eskisi ozetten okunur).
   static Future<(Map<DateTime, int>, int?)> backfill(
     DataService data, {
-    int lookbackDays = 7,
+    int lookbackDays = 30,
+    int refreshDays = 7,
   }) async {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
@@ -26,18 +31,16 @@ class ScreenTimeSync {
       history = {}; // cevrimdisi: telefondan okunanlar yine gosterilir
     }
 
-    // Son [lookbackDays] gunu HER ZAMAN yeniden oku ve uzerine yaz. Boylece
-    // eski/hatali yontemle yazilmis degerler (orn. sismis ekran suresi)
-    // Android'in hala tuttugu olay gecmisiyle duzeltilir. Olay gecmisi
-    // ~1 haftadan eski gunlere ulasamaz; oraya dokunmayiz.
     int? todayMin;
     for (var i = lookbackDays; i >= 0; i--) {
       final day = today.subtract(Duration(days: i));
+      // Eski gun (refreshDays'ten oteye) zaten kayitliysa tekrar okuma.
+      if (i > refreshDays && history.containsKey(day)) continue;
       final min = await ScreenTimeService.minutesForDay(day);
       if (i == 0) todayMin = min;
       if (min == null) continue;
-      // Gecmis gunde 0 dakika buyuk olasilikla "olay gecmisi silinmis"
-      // demektir; sahte 0 ile gercek veriyi ezme.
+      // Gecmis gunde 0 dakika buyuk olasilikla "veri yok" demektir;
+      // sahte 0 ile gercek veriyi ezme.
       if (i != 0 && min == 0) continue;
       history[day] = min;
       try {
