@@ -74,6 +74,24 @@ class ScreenTimeService {
       final resumed = type == '1' || type.contains('RESUME');
       final paused = type == '2' || type.contains('PAUSE') ||
           type.contains('STOP');
+      // Ekran kapandi/kilitlendi: bazi cihazlar bu durumda PAUSE olayi
+      // vermez; vermezse uygulama "on planda" kalir ve sayac gece boyu
+      // isler (14 saat gibi sismis degerler). Bu olayda aktif araligi
+      // kesin olarak kapatiriz.
+      final screenOff = type == '16' || // SCREEN_NON_INTERACTIVE (ekran kapandi)
+          type == '17' || // KEYGUARD_SHOWN (kilitlendi)
+          type.contains('NON_INTERACTIVE') ||
+          type.contains('KEYGUARD_SHOWN');
+
+      if (screenOff) {
+        if (fg.isNotEmpty && activeSince != null) {
+          totalMs += ts - activeSince;
+        }
+        fg.clear();
+        activeSince = null;
+        continue;
+      }
+
       if (!resumed && !paused) continue;
       sawForeground = true;
 

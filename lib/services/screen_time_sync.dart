@@ -26,15 +26,18 @@ class ScreenTimeSync {
       history = {}; // cevrimdisi: telefondan okunanlar yine gosterilir
     }
 
+    // Son [lookbackDays] gunu HER ZAMAN yeniden oku ve uzerine yaz. Boylece
+    // eski/hatali yontemle yazilmis degerler (orn. sismis ekran suresi)
+    // Android'in hala tuttugu olay gecmisiyle duzeltilir. Olay gecmisi
+    // ~1 haftadan eski gunlere ulasamaz; oraya dokunmayiz.
     int? todayMin;
     for (var i = lookbackDays; i >= 0; i--) {
       final day = today.subtract(Duration(days: i));
-      if (i != 0 && history.containsKey(day)) continue;
       final min = await ScreenTimeService.minutesForDay(day);
       if (i == 0) todayMin = min;
       if (min == null) continue;
       // Gecmis gunde 0 dakika buyuk olasilikla "olay gecmisi silinmis"
-      // demektir; sahte 0 kaydetme.
+      // demektir; sahte 0 ile gercek veriyi ezme.
       if (i != 0 && min == 0) continue;
       history[day] = min;
       try {
